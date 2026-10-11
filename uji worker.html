@@ -272,7 +272,7 @@ function hintFor(r) {
   if (r.status === 401) return "Worker mewajibkan token. Isi Token JWT di bagian 1 atau buat di bagian 5.";
   if (/config\.json/.test(msg)) return "Letakkan config.json di root situs yang menyajikan halaman ini.";
   if (/GITHUB_API/.test(msg)) return "Isi GITHUB_API di .dev.vars (lokal) atau wrangler secret put (produksi).";
-  if (/tidak diizinkan/i.test(msg) && /Repository/.test(msg)) return "Pemilik repo di config.json tidak tercantum di ALLOWED_OWNERS.";
+  if (/tidak diizinkan/i.test(msg) && /Repository/.test(msg)) return "repository.username di config.json harus sama dengan DEFAULT_GH_OWNER.";
   return "";
 }
 

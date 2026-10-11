@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # ==========================================
-# SINKRONISASI GIT: tarik → commit → push (HANYA branch main)
-# - Memastikan pekerjaan berada di branch main; bila tidak, menawarkan pindah / ganti nama.
+# SINKRONISASI GIT: tarik → commit → push
 # - Menarik commit terbaru dari GitHub (rebase, perubahan lokal diamankan otomatis).
 # - Commit perubahan lokal setelah diperiksa dari file rahasia.
-# - Push ke main, termasuk commit lama yang belum terkirim.
+# - Push, termasuk commit lama yang belum terkirim dan branch baru.
 # Simpan file ini dengan akhir baris LF (bukan CRLF) agar bisa dijalankan Git Bash.
 # ==========================================
 set -Eeuo pipefail
 
 REMOTE="${REMOTE:-origin}"
-readonly BRANCH="main"   # satu-satunya branch yang disinkronkan
+BRANCH="main"
 REMOTE_EXISTS=0
 MAX_FILE_MB=50   # GitHub menolak file > 100 MB dan memperingatkan file > 50 MB
 
@@ -54,6 +53,12 @@ check_repository() {
     exit 1
   fi
 
+  BRANCH="$(git branch --show-current)"
+  if [[ -z "$BRANCH" ]]; then
+    log_error "BRANCH" "HEAD dalam kondisi detached. Pindah ke sebuah branch terlebih dahulu."
+    exit 1
+  fi
+
   if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
     log_error "REBASE" "Masih ada proses rebase yang belum selesai."
     echo "Selesaikan dengan 'git rebase --continue' atau batalkan dengan 'git rebase --abort'."
@@ -65,80 +70,9 @@ check_repository() {
     exit 1
   fi
 
-  ensure_main_branch
-
   echo "📂 Repository : $(basename "$PWD")"
   echo "🌿 Branch     : $BRANCH"
   echo "🔗 Remote     : $REMOTE ($(git remote get-url "$REMOTE"))"
-}
-
-# ==========================================
-# PASTIKAN BEKERJA DI BRANCH main
-# ==========================================
-ensure_main_branch() {
-  local current choice="" has_local_main=0 has_remote_main=0
-  current="$(git branch --show-current)"
-
-  if [[ -z "$current" ]]; then
-    log_error "BRANCH" "HEAD dalam kondisi detached. Jalankan: git switch $BRANCH"
-    exit 1
-  fi
-  [[ "$current" == "$BRANCH" ]] && return 0
-
-  echo
-  echo "⚠️ Branch aktif adalah '$current', sedangkan skrip ini hanya menyinkronkan '$BRANCH'."
-
-  # Belum ada commit sama sekali: cukup ganti nama, tanpa risiko apa pun.
-  if ! git rev-parse --verify --quiet HEAD >/dev/null; then
-    git symbolic-ref HEAD "refs/heads/$BRANCH"
-    echo "✅ Branch kosong '$current' diganti nama menjadi '$BRANCH'."
-    return 0
-  fi
-
-  git show-ref --verify --quiet "refs/heads/$BRANCH" && has_local_main=1
-  git fetch --quiet "$REMOTE" 2>/dev/null || true
-  git show-ref --verify --quiet "refs/remotes/$REMOTE/$BRANCH" && has_remote_main=1
-
-  if (( has_local_main )); then
-    # main sudah ada di lokal: pindah saja; commit di branch ini tidak disentuh.
-    echo "  1. Pindah ke branch '$BRANCH'  (commit di '$current' tetap tersimpan di branch itu)"
-  else
-    echo "  1. Ganti nama branch '$current' menjadi '$BRANCH'  - pekerjaan ini menjadi main"
-    if (( has_remote_main )); then
-      echo "  2. Ambil '$BRANCH' dari GitHub dan pindah ke sana  (commit di '$current' tidak dikirim)"
-    fi
-  fi
-  echo "  0. Batal"
-  read -r -p "Pilih: " choice || true
-
-  case "$choice" in
-    1)
-      if (( has_local_main )); then
-        if ! git switch "$BRANCH"; then
-          log_error "BRANCH" "Gagal pindah: perubahan yang belum di-commit bentrok dengan '$BRANCH'."
-          echo "Commit dulu perubahan di '$current', atau simpan dengan: git stash"
-          exit 1
-        fi
-        echo "ℹ️ Commit di '$current' tidak ikut dikirim. Gabungkan bila perlu: git merge $current"
-      else
-        git branch -m "$current" "$BRANCH"
-        git branch --unset-upstream >/dev/null 2>&1 || true
-        echo "✅ Branch '$current' sekarang bernama '$BRANCH'."
-      fi ;;
-    2)
-      if (( has_local_main == 1 || has_remote_main == 0 )); then
-        echo "⏹️ Pilihan tidak tersedia. Dibatalkan."; exit 1
-      fi
-      if ! git switch -c "$BRANCH" --track "$REMOTE/$BRANCH"; then
-        log_error "BRANCH" "Gagal pindah: ada file lokal yang bentrok dengan isi '$BRANCH' di GitHub."
-        exit 1
-      fi
-      echo "ℹ️ Commit di '$current' tidak ikut dikirim dan tetap tersimpan di branch itu." ;;
-    *)
-      echo "⏹️ Dibatalkan. Tidak ada yang diubah."
-      exit 1 ;;
-  esac
-  echo "🌿 Sekarang di branch '$BRANCH'."
 }
 
 # ==========================================
@@ -154,31 +88,15 @@ sync_remote() {
 
   if ! git show-ref --verify --quiet "$(remote_ref)"; then
     REMOTE_EXISTS=0
-    echo "🆕 Branch '$BRANCH' belum ada di GitHub (repo masih kosong); akan dibuat saat push."
+    echo "🆕 Branch '$BRANCH' belum ada di GitHub; akan dibuat saat push."
     return 0
   fi
   REMOTE_EXISTS=1
 
-  # Lokal belum punya commit: ambil isi main dari GitHub sebagai titik awal.
-  if ! git rev-parse --verify --quiet HEAD >/dev/null; then
-    echo "📥 Folder lokal belum punya commit; mengambil isi '$BRANCH' dari GitHub..."
-    if ! git checkout -q -B "$BRANCH" --track "$REMOTE/$BRANCH"; then
-      log_error "CHECKOUT" "Ada file lokal yang bentrok dengan isi GitHub. Pindahkan file itu dulu, lalu ulangi."
-      exit 1
-    fi
-    echo "✅ Isi GitHub sudah diambil; file lokal lain tetap ada dan bisa di-commit."
-    return 0
-  fi
-
   if ! git merge-base HEAD "$REMOTE/$BRANCH" >/dev/null 2>&1; then
-    echo "⚠️ Riwayat lokal dan GitHub dimulai dari commit awal yang berbeda"
-    echo "   (biasanya karena repo GitHub dibuat dengan README / lisensi)."
-    if ! confirm "Susun commit lokal di atas riwayat GitHub lalu lanjutkan?"; then
-      log_error "HISTORY" "Dibatalkan. Tidak ada yang diubah."
-      exit 1
-    fi
-    rebase_or_explain
-    return 0
+    log_error "HISTORY" "Riwayat lokal dan remote tidak memiliki basis bersama."
+    echo "Jangan reset otomatis; periksa kedua riwayat secara manual."
+    exit 1
   fi
 
   local ahead behind
@@ -191,11 +109,6 @@ sync_remote() {
     return 0
   fi
 
-  rebase_or_explain
-}
-
-# Rebase ke $REMOTE/$BRANCH; bila konflik, jelaskan cara menyelesaikan lalu berhenti.
-rebase_or_explain() {
   echo "📥 Menerapkan commit dari GitHub (rebase)..."
   # Data sudah di-fetch; rebase langsung tanpa menghubungi jaringan lagi.
   if ! git rebase --autostash "$REMOTE/$BRANCH"; then
@@ -305,10 +218,6 @@ commit_changes() {
 # ==========================================
 push_changes() {
   local ahead=0
-  if ! git rev-parse --verify --quiet HEAD >/dev/null; then
-    echo "ℹ️ Belum ada commit di '$BRANCH'; tidak ada yang dikirim."
-    return 0
-  fi
   if (( REMOTE_EXISTS )); then
     ahead="$(git rev-list --count "$REMOTE/$BRANCH..HEAD")"
     if (( ahead == 0 )); then
