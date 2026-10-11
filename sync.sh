@@ -143,13 +143,72 @@ ensure_main_branch() {
 }
 
 # ==========================================
+# PENGATURAN FETCH & RIWAYAT DANGKAL (bekas "git clone --depth 1")
+# ==========================================
+# Clone --depth 1 / --single-branch membatasi fetch ke satu branch. Bila branch itu tidak ada
+# di repo tujuan, fetch gagal dengan "couldn't find remote ref". Kembalikan ke pengaturan standar.
+fix_fetch_refspec() {
+  local want="+refs/heads/*:refs/remotes/$REMOTE/*" current
+  current="$(git config --get-all "remote.$REMOTE.fetch" || true)"
+  grep -qxF "$want" <<< "$current" && return 0
+  echo "🔧 Pengaturan fetch hanya mengambil: ${current:-(kosong)}"
+  echo "   (biasanya bekas clone --depth 1). Diubah agar mengambil semua branch."
+  git config --replace-all "remote.$REMOTE.fetch" "$want"
+}
+
+is_shallow() { [[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; }
+
+# Riwayat dangkal tidak bisa di-push ke repo lain (GitHub: "shallow update not allowed").
+handle_shallow() {
+  is_shallow || return 0
+  local choice="" src="" msg new
+  echo
+  echo "⚠️ Riwayat repo ini dangkal (hasil salinan --depth 1): commit lamanya tidak ikut tersalin."
+  echo "   GitHub menolak push dari riwayat seperti ini ke repo lain."
+  if (( REMOTE_EXISTS == 0 )); then
+    echo "  1. Jadikan isi saat ini sebagai commit awal yang baru  - disarankan untuk salinan situs"
+  fi
+  echo "  2. Lengkapi riwayat dari repo asal (butuh URL repo yang dulu disalin)"
+  echo "  0. Batal"
+  read -r -p "Pilih: " choice || true
+
+  case "$choice" in
+    1)
+      if (( REMOTE_EXISTS == 1 )); then echo "⏹️ Pilihan tidak tersedia."; exit 1; fi
+      msg="Salinan awal $(basename "$PWD") ($(date '+%d/%m/%Y'))"
+      new="$(git commit-tree "HEAD^{tree}" -m "$msg")" || { log_error "RIWAYAT" "Gagal membuat commit awal."; exit 1; }
+      git update-ref -m "riwayat baru dari salinan dangkal" "refs/heads/$BRANCH" "$new"
+      # Bersihkan sisa riwayat dangkal agar repo kembali normal.
+      git reflog expire --expire-unreachable=now --all >/dev/null 2>&1 || true
+      git gc --prune=now --quiet >/dev/null 2>&1 || true
+      echo "✅ Riwayat baru dibuat: 1 commit berisi semua file saat ini ('$msg')."
+      ;;
+    2)
+      read -r -p "URL repo asal (mis. https://github.com/pemilik/dekeku.git): " src || true
+      [[ -n "$src" ]] || { echo "⏹️ Dibatalkan."; exit 1; }
+      echo "📥 Mengambil riwayat lengkap dari repo asal..."
+      if ! git fetch --unshallow "$src"; then
+        log_error "UNSHALLOW" "Riwayat tidak bisa diambil dari $src. Periksa URL dan aksesnya."
+        exit 1
+      fi
+      echo "✅ Riwayat lengkap sudah diambil."
+      ;;
+    *)
+      echo "⏹️ Dibatalkan. Tidak ada yang dikirim."
+      exit 1 ;;
+  esac
+}
+
+# ==========================================
 # TARIK PERUBAHAN DARI GITHUB
 # ==========================================
 sync_remote() {
   echo
+  fix_fetch_refspec
   echo "🌐 Mengambil informasi terbaru dari GitHub..."
   if ! git fetch --prune "$REMOTE"; then
     log_error "FETCH" "Gagal menghubungi remote. Periksa koneksi, URL, dan autentikasi."
+    echo "Untuk mencari penyebabnya, jalankan: bash cek-koneksi-git.sh"
     exit 1
   fi
 
@@ -328,6 +387,8 @@ push_changes() {
     echo "ℹ️ Belum ada commit di '$BRANCH'; tidak ada yang dikirim."
     return 0
   fi
+  handle_shallow
+
   if (( REMOTE_EXISTS )); then
     ahead="$(git rev-list --count "$REMOTE/$BRANCH..HEAD")"
     if (( ahead == 0 )); then
