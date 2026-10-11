@@ -1,256 +1,205 @@
+
 #!/usr/bin/env bash
-# ==========================================
-# SINKRONISASI GIT: tarik → commit → push
-# - Menarik commit terbaru dari GitHub (rebase, perubahan lokal diamankan otomatis).
-# - Commit perubahan lokal setelah diperiksa dari file rahasia.
-# - Push, termasuk commit lama yang belum terkirim dan branch baru.
-# Simpan file ini dengan akhir baris LF (bukan CRLF) agar bisa dijalankan Git Bash.
-# ==========================================
 set -Eeuo pipefail
 
-REMOTE="${REMOTE:-origin}"
-BRANCH="main"
-REMOTE_EXISTS=0
-MAX_FILE_MB=50   # GitHub menolak file > 100 MB dan memperingatkan file > 50 MB
+REMOTE="origin"
+BRANCH=""
 
 # ==========================================
-# UTILITAS
+# LOGGING
 # ==========================================
-log_error() { printf '❌ [%s] %s\n' "$1" "$2" >&2; }
+log_error() {
+  printf '❌ [%s] %s\n' "$1" "$2" >&2
+}
 
-on_exit() {
-  local code=$?
-  if [[ -t 0 ]]; then
-    echo
-    read -r -p "Tekan Enter untuk keluar..." _ || true
-  fi
+pause_exit() {
+  local code="${1:-1}"
+  read -r -p "Tekan Enter untuk keluar..." _ || true
   exit "$code"
 }
-trap on_exit EXIT
-trap 'log_error "BARIS $LINENO" "Perintah gagal (kode $?)."' ERR
 
 confirm() {
-  local answer=""
-  read -r -p "$1 (y/N): " answer || return 1
-  [[ "${answer,,}" =~ ^(y|ya|yes)$ ]]
+  local answer
+  read -r -p "$1 (y/n): " answer || return 1
+  [[ "$answer" =~ ^[Yy]$ ]]
 }
-
-remote_ref() { echo "refs/remotes/${REMOTE}/${BRANCH}"; }
 
 # ==========================================
 # VALIDASI REPOSITORY
 # ==========================================
+
 check_repository() {
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     log_error "REPOSITORY" "Folder ini belum menjadi repository Git."
-    exit 1
+    pause_exit 1
   fi
-  cd "$(git rev-parse --show-toplevel)"
 
   if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
     log_error "REMOTE" "Remote '$REMOTE' belum dikonfigurasi."
-    echo "Tambahkan dengan: git remote add $REMOTE <URL_REPOSITORY_GITHUB>"
-    exit 1
+    echo "Tambahkan remote dengan:"
+    echo "  git remote add origin <URL_REPOSITORY_GITHUB>"
+    pause_exit 1
   fi
 
   BRANCH="$(git branch --show-current)"
+
   if [[ -z "$BRANCH" ]]; then
-    log_error "BRANCH" "HEAD dalam kondisi detached. Pindah ke sebuah branch terlebih dahulu."
-    exit 1
+    log_error "BRANCH" "HEAD dalam kondisi detached."
+    echo "Pindah ke branch terlebih dahulu."
+    pause_exit 1
   fi
 
-  if [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]; then
-    log_error "REBASE" "Masih ada proses rebase yang belum selesai."
-    echo "Selesaikan dengan 'git rebase --continue' atau batalkan dengan 'git rebase --abort'."
-    exit 1
+  echo "📂 Repository : $(basename "$(git rev-parse --show-toplevel)")"
+  echo "🌿 Branch lokal: $BRANCH"
+  echo "🔗 Remote      : $REMOTE"
+
+  if ! git show-ref --verify --quiet \
+    "refs/remotes/${REMOTE}/${BRANCH}"; then
+    echo "⚠️ Branch remote '$REMOTE/$BRANCH' belum ditemukan."
+    echo "Script tidak akan membuat branch remote secara otomatis."
+
+    if ! confirm "Lanjutkan dengan branch lokal '$BRANCH'?"; then
+      pause_exit 1
+    fi
   fi
+
+  if [[ -d "$(git rev-parse --git-path rebase-merge)" ||
+        -d "$(git rev-parse --git-path rebase-apply)" ]]; then
+    log_error "REBASE" "Masih ada proses rebase yang belum selesai."
+    git status
+    pause_exit 1
+  fi
+
   if [[ -f "$(git rev-parse --git-path MERGE_HEAD)" ]]; then
     log_error "MERGE" "Masih ada proses merge yang belum selesai."
-    echo "Selesaikan dengan 'git commit' atau batalkan dengan 'git merge --abort'."
-    exit 1
+    git status
+    pause_exit 1
   fi
-
-  echo "📂 Repository : $(basename "$PWD")"
-  echo "🌿 Branch     : $BRANCH"
-  echo "🔗 Remote     : $REMOTE ($(git remote get-url "$REMOTE"))"
 }
 
 # ==========================================
-# TARIK PERUBAHAN DARI GITHUB
+# FETCH DAN SINKRONISASI
 # ==========================================
 sync_remote() {
-  echo
   echo "🌐 Mengambil informasi terbaru dari GitHub..."
-  if ! git fetch --prune "$REMOTE"; then
-    log_error "FETCH" "Gagal menghubungi remote. Periksa koneksi, URL, dan autentikasi."
-    exit 1
+
+  if ! git fetch "$REMOTE" "$BRANCH"; then
+    log_error "FETCH" "Gagal mengambil data dari remote."
+    echo "Periksa koneksi, URL remote, autentikasi, dan branch."
+    pause_exit 1
   fi
 
-  if ! git show-ref --verify --quiet "$(remote_ref)"; then
-    REMOTE_EXISTS=0
-    echo "🆕 Branch '$BRANCH' belum ada di GitHub; akan dibuat saat push."
+  if ! git show-ref --verify --quiet \
+    "refs/remotes/${REMOTE}/${BRANCH}"; then
+    log_error "REMOTE_BRANCH" \
+      "Branch ${REMOTE}/${BRANCH} belum tersedia."
+    echo "Periksa apakah branch sudah dibuat dan memiliki commit."
+    pause_exit 1
+  fi
+
+  local local_commit remote_commit
+  local_commit="$(git rev-parse HEAD)"
+  remote_commit="$(git rev-parse "${REMOTE}/${BRANCH}")"
+
+  if [[ "$local_commit" == "$remote_commit" ]]; then
+    echo "✅ HEAD lokal sudah sama dengan remote."
     return 0
   fi
-  REMOTE_EXISTS=1
 
-  if ! git merge-base HEAD "$REMOTE/$BRANCH" >/dev/null 2>&1; then
+  echo "🔄 Memeriksa perbedaan commit..."
+
+  if ! git merge-base HEAD "${REMOTE}/${BRANCH}" >/dev/null 2>&1; then
     log_error "HISTORY" "Riwayat lokal dan remote tidak memiliki basis bersama."
-    echo "Jangan reset otomatis; periksa kedua riwayat secara manual."
-    exit 1
+    echo "Jangan lakukan reset otomatis; periksa riwayat kedua repository."
+    pause_exit 1
   fi
 
-  local ahead behind
-  read -r ahead behind <<< "$(git rev-list --left-right --count "HEAD...$REMOTE/$BRANCH")"
-  echo "Commit lokal belum terkirim : $ahead"
-  echo "Commit baru di GitHub       : $behind"
+  local counts behind ahead
+  counts="$(git rev-list --left-right --count \
+    "HEAD...${REMOTE}/${BRANCH}")"
+  read -r ahead behind <<< "$counts"
 
-  if (( behind == 0 )); then
-    echo "✅ Tidak ada commit baru di GitHub."
-    return 0
-  fi
+  echo "Commit lokal saja : $ahead"
+  echo "Commit remote saja: $behind"
 
-  echo "📥 Menerapkan commit dari GitHub (rebase)..."
-  # Data sudah di-fetch; rebase langsung tanpa menghubungi jaringan lagi.
-  if ! git rebase --autostash "$REMOTE/$BRANCH"; then
-    log_error "REBASE" "Ada konflik saat menggabungkan perubahan."
-    echo
-    git status --short || true
-    echo
-    echo "Cara menyelesaikan:"
-    echo "  1. Buka file bertanda konflik (<<<<<<< ======= >>>>>>>) lalu perbaiki."
-    echo "  2. git add <file>"
-    echo "  3. git rebase --continue"
-    echo "Untuk membatalkan dan kembali ke kondisi semula: git rebase --abort"
-    echo "Bila perubahan belum di-commit tidak kembali, cek: git stash list"
-    exit 1
-  fi
-  echo "✅ Perubahan dari GitHub sudah diterapkan."
-}
+  if (( behind > 0 )); then
+    echo "📥 Menjalankan pull --rebase..."
 
-# ==========================================
-# PEMERIKSAAN KEAMANAN SEBELUM COMMIT
-# ==========================================
-# Mengembalikan 1 bila ada file rahasia / token / file terlalu besar di staging.
-check_staged_safety() {
-  local problems=0 f size
+    if ! git pull --rebase --autostash "$REMOTE" "$BRANCH"; then
+      log_error "PULL" "Sinkronisasi gagal."
 
-  # 1. Nama file yang tidak boleh masuk repository.
-  while IFS= read -r f; do
-    case "${f##*/}" in
-      .dev.vars | .env | .env.* | *.pem | *.key | *.p12 | *.pfx | id_rsa* | credentials*.json | *service-account*.json)
-        [[ "${f##*/}" == *.example ]] && continue
-        log_error "RAHASIA" "File sensitif ikut di-stage: $f"
-        problems=1 ;;
-    esac
-  done < <(git diff --cached --name-only --diff-filter=AM)
+      echo
+      echo "Status Git saat ini:"
+      git status || true
 
-  # 2. Isi yang menyerupai token atau private key (hanya baris yang ditambahkan).
-  local hits
-  hits="$(git diff --cached -U0 --diff-filter=AM \
-    | grep -nE '^\+.*(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|gho_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16})' \
-    | cut -c1-120 || true)"
-  if [[ -n "$hits" ]]; then
-    log_error "RAHASIA" "Ditemukan teks yang menyerupai token/private key:"
-    echo "$hits" | sed 's/\(ghp_\|github_pat_\|gho_\)[A-Za-z0-9_]\{4\}[A-Za-z0-9_]*/\1****/g'
-    problems=1
-  fi
-
-  # 3. File terlalu besar untuk GitHub.
-  while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    size=$(( $(wc -c < "$f") / 1024 / 1024 ))
-    if (( size >= MAX_FILE_MB )); then
-      log_error "UKURAN" "$f berukuran ${size} MB; GitHub menolak file di atas 100 MB."
-      problems=1
+      echo
+      echo "Jika ada konflik:"
+      echo "  1. Periksa file konflik dengan git status."
+      echo "  2. Perbaiki file secara manual."
+      echo "  3. Stage file yang telah diperbaiki."
+      echo "  4. Jalankan git rebase --continue."
+      echo
+      echo "Untuk membatalkan rebase:"
+      echo "  git rebase --abort"
+      echo
+      echo "Jalankan ulang script setelah proses selesai."
+      pause_exit 1
     fi
-  done < <(git diff --cached --name-only --diff-filter=AM)
-
-  return "$problems"
-}
-
-# ==========================================
-# COMMIT
-# ==========================================
-commit_changes() {
-  echo
-  if [[ -z "$(git status --porcelain)" ]]; then
-    echo "📦 Tidak ada perubahan file lokal."
-    return 0
-  fi
-
-  echo "📝 Perubahan lokal:"
-  git status --short
-  echo
-  if ! confirm "Commit semua perubahan di atas?"; then
-    echo "⏹️ Commit dilewati."
-    return 0
-  fi
-
-  git add -A
-  if git diff --cached --quiet; then
-    echo "ℹ️ Tidak ada perubahan yang dapat di-commit."
-    return 0
-  fi
-
-  if ! check_staged_safety; then
-    git reset -q   # kembalikan staging; file di folder tidak diubah
-    echo
-    echo "⛔ Commit dibatalkan demi keamanan. Tidak ada yang dikirim."
-    echo "   Tambahkan file rahasia ke .gitignore, atau hapus token dari kodenya,"
-    echo "   lalu jalankan ulang skrip ini."
-    exit 1
-  fi
-
-  local message="" default
-  default="Auto-sync $(date '+%H:%M %d/%m/%Y')"
-  read -r -p "Pesan commit [$default]: " message || true
-  message="${message:-$default}"
-
-  if ! git commit -q -m "$message"; then
-    log_error "COMMIT" "Commit gagal. Periksa pesan error di atas."
-    exit 1
-  fi
-  echo "✅ Commit dibuat: $message"
-}
-
-# ==========================================
-# PUSH
-# ==========================================
-push_changes() {
-  local ahead=0
-  if (( REMOTE_EXISTS )); then
-    ahead="$(git rev-list --count "$REMOTE/$BRANCH..HEAD")"
-    if (( ahead == 0 )); then
-      echo "✅ GitHub sudah sama dengan lokal; tidak ada yang perlu di-push."
-      return 0
-    fi
-    echo
-    echo "🚀 Mengirim $ahead commit ke GitHub..."
   else
+    echo "ℹ️ Remote tidak memiliki commit baru."
+  fi
+
+  echo "✅ Pemeriksaan sinkronisasi selesai."
+}
+
+# ==========================================
+# COMMIT DAN PUSH
+# ==========================================
+commit_and_push() {
+  if [[ -n "$(git status --porcelain)" ]]; then
     echo
-    echo "🚀 Membuat branch '$BRANCH' di GitHub dan mengirim commit..."
-  fi
+    echo "📝 Perubahan lokal terdeteksi:"
+    git status --short
 
-  # -u: atur upstream agar 'git push' / 'git pull' biasa juga langsung bekerja.
-  if git push -u "$REMOTE" "$BRANCH"; then
-    echo "✅ Push berhasil."
-    return 0
-  fi
+    echo
+    echo "⚠️ Periksa daftar di atas sebelum melanjutkan."
+    echo "Pastikan tidak ada file rahasia atau file yang tidak ingin dikirim."
 
-  # Push ditolak biasanya karena ada commit baru di GitHub sejak fetch tadi: coba sekali lagi.
-  echo "⚠️ Push ditolak. Menarik perubahan terbaru lalu mencoba sekali lagi..."
-  sync_remote
-  if git push -u "$REMOTE" "$BRANCH"; then
-    echo "✅ Push berhasil pada percobaan kedua."
-    return 0
-  fi
+    if confirm "Commit seluruh perubahan yang ditampilkan?"; then
+      git add -A
 
-  log_error "PUSH" "Push gagal."
-  echo "Coba jalankan manual:"
-  echo "  git fetch $REMOTE"
-  echo "  git rebase $REMOTE/$BRANCH"
-  echo "  git push -u $REMOTE $BRANCH"
-  exit 1
+      if git diff --cached --quiet; then
+        echo "ℹ️ Tidak ada perubahan yang dapat di-commit."
+        return 0
+      fi
+
+      local timestamp
+      timestamp="$(date '+%H:%M %d/%m/%Y')"
+
+      if ! git commit -m "Auto-sync $timestamp"; then
+        log_error "COMMIT" "Commit gagal."
+        echo "Periksa git status dan pesan error di atas."
+        pause_exit 1
+      fi
+
+      echo "🚀 Mendorong commit ke GitHub..."
+
+      if ! git push "$REMOTE" "$BRANCH"; then
+        log_error "PUSH" "Push gagal."
+        echo "Periksa status repository dan jalankan:"
+        echo "  git fetch origin"
+        echo "  git pull --rebase origin main"
+        echo "  git push origin main"
+        pause_exit 1
+      fi
+
+      echo "✅ Commit dan push berhasil."
+    else
+      echo "⏹️ Commit dan push dibatalkan."
+    fi
+  else
+    echo "📦 Tidak ada perubahan lokal."
+  fi
 }
 
 # ==========================================
@@ -258,12 +207,16 @@ push_changes() {
 # ==========================================
 main() {
   echo "🚀 Memulai sinkronisasi Git..."
+
   check_repository
   sync_remote
-  commit_changes
-  push_changes
+  commit_and_push
+
   echo
   echo "✅ Proses selesai."
 }
 
+trap 'rc=$?; printf "\n❌ Error pada baris %s (kode %s).\n" "$LINENO" "$rc" >&2' ERR
+
 main
+pause_exit 0
