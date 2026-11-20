@@ -51,7 +51,7 @@ hr{border:0;border-top:1px solid #e2e8f0;margin:14px 0}
 <div class="card">
 <h2>1. Public API</h2>
 <button onclick="runTest('Health','GET','/api/v1/health')">Check Health</button>
-<button onclick="runTest('Repository Metadata','GET','/api/v1/github/repository')">Repo Metadata</button>
+<button onclick="runTest('Repository Metadata','GET','/api/v1/github/repository?owner=wahyuajismustofa30&repo=demo&branch=main')">Repo Metadata</button>
 <label>Public file path</label><input id="readPath" value="public/data/guestbook/list.json">
 <p class="muted small">Gunakan path sesuai kebijakan Public File API. Path harus berada di direktori public/.</p>
 <button onclick="readPublicFile()">Read Public File</button>
@@ -204,7 +204,7 @@ async function readPublicFile(){const p=document.getElementById('readPath').valu
 function uiLog(id,module,method,path,result,detail){addLog({id,module,method,path,http:0,duration:0,result,detail})}
 async function runSafeSuite(){
  if(busy)return;busy=true;const button=document.getElementById('suiteButton');button.disabled=true;document.getElementById('suiteSummary').textContent='Sedang berjalan…';
- const cases=[['Health','/api/v1/health'],['Repository Metadata','/api/v1/github/repository']];
+ const cases=[['Health','/api/v1/health'],['Repository Metadata','/api/v1/github/repository?owner=wahyuajismustofa30&repo=demo&branch=main']];
  const file=document.getElementById('suiteReadPath').value.trim();
  if(file)cases.push(['Public File','/api/v1/github/file?path='+encodeURIComponent(file)]);
  let pass=0,fail=0;
