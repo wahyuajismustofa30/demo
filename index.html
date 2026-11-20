@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DEKEKU API — Development Tester</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#172033;background:#f1f5f9}
+*{box-sizing:border-box}body{margin:0;padding:16px}.wrap{max-width:1100px;margin:auto}
+h1{font-size:1.45rem;margin:.2rem 0}.muted{color:#64748b;font-size:.9rem}
+.card{background:#fff;border:1px solid #dbe3ee;border-radius:12px;padding:16px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+label{display:block;font-weight:650;font-size:.9rem;margin:10px 0 5px}
+input,textarea,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}
+textarea{min-height:90px}button{border:0;border-radius:8px;padding:10px 12px;background:#1d4ed8;color:white;font-weight:650;cursor:pointer;margin:4px 3px 4px 0}
+button.secondary{background:#475569}button.danger{background:#b91c1c}button:disabled{opacity:.55;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+.pill{display:inline-block;padding:4px 9px;border-radius:20px;background:#e2e8f0;font-size:.8rem;font-weight:700}
+.status-PASS{background:#dcfce7;color:#166534}.status-FAIL,.status-ERROR{background:#fee2e2;color:#991b1b}.status-SKIP{background:#fef3c7;color:#92400e}
+table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{text-align:left;padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{background:#f8fafc}
+.logs{overflow:auto}.log-detail{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,monospace;font-size:.8rem;max-width:380px}
+.small{font-size:.8rem}.notice{border-left:4px solid #d97706;background:#fffbeb;padding:10px;border-radius:6px}
+#counts{display:flex;gap:8px;flex-wrap:wrap}.count{background:#f8fafc;border:1px solid #e2e8f0;padding:8px 12px;border-radius:8px}
+</style>
+</head>
+<body><main class="wrap">
+<header class="card">
+<h1>DEKEKU API Tester — Development</h1>
+<div class="muted">API target dikunci. Halaman ini tidak menggunakan origin halaman sebagai target API.</div>
+<p><strong>Development API:</strong> <code id="apiOrigin"></code></p>
+<div class="notice"><strong>Perhatian:</strong> Guestbook CREATE dan Admin Write CREATE/UPDATE/DELETE mengubah data di repository database Development. Jalankan hanya dengan data uji dan persetujuan yang sesuai. Jangan gunakan data pribadi.</div>
+</header>
+
+<section class="grid">
+<div class="card">
+<h2>1. Public API</h2>
+<button onclick="runTest('Health','GET','/api/v1/health')">Check Health</button>
+<button onclick="runTest('Repository Metadata','GET','/api/v1/github/repository')">Repo Metadata</button>
+<label>Public file path</label><input id="readPath" value="public/data/guestbook/list.json">
+<button onclick="readPublicFile()">Read Public File</button>
+</div>
+<div class="card">
+<h2>2. Guestbook Submission</h2>
+<label>Nama (data tidak masuk log)</label><input id="gbName" value="Tester HTML">
+<label>Pesan (data tidak masuk log)</label><textarea id="gbMessage">Pesan pengujian Development</textarea>
+<button id="gbButton" onclick="submitGuestbook()">Submit Guestbook</button>
+</div>
+<div class="card">
+<h2>3. Admin Login</h2>
+<label>Username</label><input id="loginUser" value="admin" autocomplete="username">
+<label>Password</label><input id="loginPass" type="password" autocomplete="current-password">
+<button onclick="login()">Login</button><button class="secondary" onclick="logout()">Logout</button>
+<p id="session" class="muted">Belum login. JWT disimpan di memori halaman saja.</p>
+</div>
+<div class="card">
+<h2>4. Admin Write Engine</h2>
+<label>Method</label><select id="writeMethod"><option>POST</option><option>PUT</option><option>DELETE</option></select>
+<label>File path (hanya public/data/*.json)</label><input id="writePath" value="public/data/test-manual.json">
+<label>JSON content (POST/PUT)</label><textarea id="writeContent">{ "test": true, "source": "local-tester" }</textarea>
+<label>SHA (wajib PUT/DELETE)</label><input id="writeSha" placeholder="40 hex characters">
+<button class="danger" onclick="writeData()">Execute Write Operation</button>
+</div>
+</section>
+
+<section class="card">
+<h2>Logging</h2>
+<div id="counts"></div>
+<div class="row">
+<div><label>Filter status</label><select id="statusFilter" onchange="renderLogs()"><option value="ALL">ALL</option><option>PASS</option><option>FAIL</option><option>ERROR</option><option>SKIP</option></select></div>
+<div><label>Filter modul</label><select id="moduleFilter" onchange="renderLogs()"><option value="ALL">Semua modul</option><option>Public</option><option>Guestbook</option><option>Authentication</option><option>Write Engine</option><option>UI</option></select></div>
+<div><label>Pencarian</label><input id="searchFilter" placeholder="Test ID / endpoint" oninput="renderLogs()"></div>
+</div>
+<div class="row">
+<button onclick="copyVisibleLogs()">Copy log yang tampil</button>
+<button class="secondary" onclick="exportLogs()">Export JSON</button>
+<button class="danger" onclick="clearLogs()">Hapus semua log</button>
+</div>
+<p class="muted small">Maksimal 300 entri, disimpan lokal di browser. Log tidak menyimpan password, JWT, Authorization, isi Guestbook, payload write, atau isi file.</p>
+<div class="logs"><table><thead><tr><th>Waktu</th><th>Test ID / Modul</th><th>Request</th><th>HTTP</th><th>Durasi</th><th>Status</th><th>Detail</th><th>Copy</th></tr></thead><tbody id="logRows"><tr><td colspan="8">Belum ada logging.</td></tr></tbody></table></div>
+</section>
+<section class="card"><h2>Response terakhir</h2><pre id="lastResponse" class="log-detail">Belum ada request.</pre></section>
+</main>
+<script>
+'use strict';
+const API_ORIGIN='https://dekeku-api-dev.wahyuajismustofa30.workers.dev';
+const STORAGE_KEY='dekeku_dev_tester_logs_v1';
+const MAX_LOGS=300;
+let jwtToken='';
+let logs=[];
+let guestbookBusy=false;
+document.getElementById('apiOrigin').textContent=API_ORIGIN;
+try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))logs=saved.slice(0,MAX_LOGS)}catch{}
+function safeText(v){return String(v??'').replace(/[\r\n\t]+/g,' ').slice(0,300)}
+function saveLogs(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(logs.slice(0,MAX_LOGS)))}catch{}}
+function addLog(entry){
+ const item={time:new Date().toISOString(),id:entry.id,module:entry.module,method:entry.method,path:entry.path,http:entry.http,duration:entry.duration,result:entry.result,detail:safeText(entry.detail)};
+ logs.unshift(item);logs=logs.slice(0,MAX_LOGS);saveLogs();renderLogs();
+}
+function renderLogs(){
+ const status=document.getElementById('statusFilter').value,module=document.getElementById('moduleFilter').value,q=document.getElementById('searchFilter').value.toLowerCase();
+ const visible=logs.filter(x=>(status==='ALL'||x.result===status)&&(module==='ALL'||x.module===module)&&(!q||(x.id+' '+x.path).toLowerCase().includes(q)));
+ document.getElementById('counts').innerHTML=['ALL','PASS','FAIL','ERROR','SKIP'].map(s=>`<span class="count">${s}: ${logs.filter(x=>s==='ALL'||x.result===s).length}</span>`).join('');
+ const tbody=document.getElementById('logRows');
+ if(!visible.length){tbody.innerHTML='<tr><td colspan="8">Tidak ada log yang cocok.</td></tr>';return}
+ tbody.innerHTML=visible.map((x,i)=>`<tr><td>${esc(new Date(x.time).toLocaleString())}</td><td><strong>${esc(x.id)}</strong><br>${esc(x.module)}</td><td>${esc(x.method)}<br><code>${esc(x.path)}</code></td><td>${x.http||'-'}</td><td>${x.duration} ms</td><td><span class="pill status-${x.result}">${x.result}</span></td><td class="log-detail">${esc(x.detail)}</td><td><button class="secondary" onclick="copyLog(${logs.indexOf(x)})">Copy</button></td></tr>`).join('');
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function copyText(s){try{await navigator.clipboard.writeText(s);alert('Logging berhasil disalin.')}catch{alert('Clipboard tidak tersedia. Buka halaman melalui HTTPS dan izinkan akses clipboard.')}}
+function formatLog(x){return [`Time: ${x.time}`,`Test ID: ${x.id}`,`Module: ${x.module}`,`Request: ${x.method} ${x.path}`,`HTTP: ${x.http??'-'}`,`Duration: ${x.duration} ms`,`Result: ${x.result}`,`Detail: ${x.detail}`].join('\n')}
+function copyLog(i){if(logs[i])copyText(formatLog(logs[i]))}
+function copyVisibleLogs(){const status=document.getElementById('statusFilter').value,module=document.getElementById('moduleFilter').value,q=document.getElementById('searchFilter').value.toLowerCase();const v=logs.filter(x=>(status==='ALL'||x.result===status)&&(module==='ALL'||x.module===module)&&(!q||(x.id+' '+x.path).toLowerCase().includes(q)));copyText(v.map(formatLog).join('\n\n')||'Tidak ada log.')}
+function exportLogs(){const blob=new Blob([JSON.stringify(logs,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dekeku-dev-logs.json';a.click();URL.revokeObjectURL(a.href)}
+function clearLogs(){if(confirm('Hapus seluruh logging yang tersimpan di browser ini?')){logs=[];saveLogs();renderLogs()}}
+function classify(http,networkError){if(networkError)return'ERROR';return http>=200&&http<300?'PASS':http===0?'ERROR':'FAIL'}
+function getPath(path){const u=new URL(path,API_ORIGIN);if(u.origin!==API_ORIGIN||!u.pathname.startsWith('/api/v1/'))throw Error('Path API tidak diizinkan');return u.toString()}
+async function request(id,module,path,options={},sensitive=false){
+ const method=(options.method||'GET').toUpperCase(),start=performance.now();let http=0,result='ERROR',detail='Network/request error';
+ try{
+  const headers=new Headers(options.headers||{});headers.set('Accept','application/json');
+  if(options.admin){if(!jwtToken)throw Error('Admin belum login');headers.set('Authorization','Bearer '+jwtToken)}
+  const res=await fetch(getPath(path),{method,headers,body:options.body,redirect:'error'});
+  http=res.status;let data=null;const raw=await res.text();
+  try{data=raw?JSON.parse(raw):null}catch{data={message:'Respons bukan JSON'}};
+  result=classify(http,false);
+  if(http===401){logout(false);detail='Unauthorized; sesi admin dihapus'}
+  else if(sensitive)detail='Request selesai; payload dan respons sensitif tidak dicatat'
+  else detail=safeText(data?.message||data?.error||res.statusText||'Request selesai');
+  document.getElementById('lastResponse').textContent=sensitive?`HTTP ${http}\nRespons disembunyikan demi privasi.`:JSON.stringify(data,null,2);
+ }catch(e){detail=safeText(e.message||'Network error');result='ERROR';document.getElementById('lastResponse').textContent=detail}
+ addLog({id,module,method,path:new URL(getPath(path)).pathname,http,duration:Math.round(performance.now()-start),result,detail});
+ return{http,result};
+}
+function runTest(name,method,path){return request('PUB-'+Date.now(),'Public',path,{method})}
+function readPublicFile(){const p=document.getElementById('readPath').value.trim();return request('READ-'+Date.now(),'Public','/api/v1/github/file?path='+encodeURIComponent(p))}
+async function submitGuestbook(){
+ if(guestbookBusy)return;const n=document.getElementById('gbName'),m=document.getElementById('gbMessage'),b=document.getElementById('gbButton');
+ if(!n.value.trim()||!m.value.trim()){addLog({id:'GB-VALIDATE',module:'Guestbook',method:'POST',path:'/api/v1/public/submit',http:0,duration:0,result:'FAIL',detail:'Nama dan pesan wajib diisi'});return}
+ guestbookBusy=true;b.disabled=true;
+ try{const r=await request('GB-'+Date.now(),'Guestbook','/api/v1/public/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n.value.trim(),message:m.value.trim()})},true);if(r.http===201){n.value='';m.value=''}}
+ finally{guestbookBusy=false;b.disabled=false}
+}
+async function login(){
+ const user=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass');if(!user||!p.value){addLog({id:'AUTH-VALIDATE',module:'Authentication',method:'POST',path:'/api/v1/admin/login',http:0,duration:0,result:'FAIL',detail:'Username/password wajib diisi'});return}
+ const password=p.value;p.value='';
+ const start=performance.now();let result='ERROR',http=0,detail='Login gagal';
+ try{const res=await fetch(getPath('/api/v1/admin/login'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username:user,password}),redirect:'error'});http=res.status;const data=await res.json().catch(()=>null);if(http===200&&typeof data?.access_token==='string'&&data.access_token){jwtToken=data.access_token;result='PASS';detail='Login berhasil; JWT hanya disimpan di memori'}else{jwtToken='';result='FAIL';detail='Login ditolak atau respons token tidak valid'}document.getElementById('lastResponse').textContent=`HTTP ${http}\n${detail}`}
+ catch(e){detail=safeText(e.message);result='ERROR'}
+ document.getElementById('session').textContent=jwtToken?'Sesi admin aktif (JWT di memori).':'Belum login.';
+ addLog({id:'AUTH-'+Date.now(),module:'Authentication',method:'POST',path:'/api/v1/admin/login',http,duration:Math.round(performance.now()-start),result,detail});
+}
+function logout(writeLog=true){jwtToken='';document.getElementById('session').textContent='Belum login. JWT dihapus dari memori.';if(writeLog)addLog({id:'AUTH-LOGOUT',module:'Authentication',method:'LOCAL',path:'logout',http:0,duration:0,result:'PASS',detail:'Sesi lokal dihapus'})}
+async function writeData(){
+ const method=document.getElementById('writeMethod').value,path=document.getElementById('writePath').value.trim(),sha=document.getElementById('writeSha').value.trim();
+ const endpoint=method==='POST'?'/api/v1/admin/write/create':method==='PUT'?'/api/v1/admin/write/update':'/api/v1/admin/write/delete';
+ const body={path};if(method!=='POST'&& !/^[a-f0-9]{40}$/i.test(sha)){addLog({id:'WRITE-VALIDATE',module:'Write Engine',method,path:endpoint,http:0,duration:0,result:'FAIL',detail:'SHA harus 40 karakter hex untuk PUT/DELETE'});return}
+ if(method!=='DELETE'){try{body.content=JSON.parse(document.getElementById('writeContent').value)}catch{addLog({id:'WRITE-VALIDATE',module:'Write Engine',method,path:endpoint,http:0,duration:0,result:'FAIL',detail:'JSON content tidak valid'});return}}
+ if(method!=='POST')body.sha=sha;
+ if(!confirm(`${method} akan mengubah data pada Development database.\nLanjutkan?`)){addLog({id:'WRITE-SKIP',module:'Write Engine',method,path:endpoint,http:0,duration:0,result:'SKIP',detail:'Dibatalkan pengguna'});return}
+ await request('WRITE-'+Date.now(),'Write Engine',endpoint,{method,admin:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);
+}
+renderLogs();
+</script></body></html>
+
