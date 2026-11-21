@@ -77,11 +77,11 @@ hr{border:0;border-top:1px solid #e2e8f0;margin:14px 0}
 <div class="card">
 <h2>4. Admin Write Engine</h2>
 <label>Operasi</label><select id="writeMethod" onchange="updateWriteHelp()"><option value="POST">CREATE (POST)</option><option value="PUT">UPDATE (PUT)</option><option value="DELETE">DELETE</option></select>
-<label>File path (public/data/*.json)</label><input id="writePath" value="public/data/test-manual.json">
+<label>File path (public/data/*.json)</label><input id="writePath" value="public/data/test-manual.json" onchange="clearWriteSha()">
 <label>JSON content (CREATE/UPDATE)</label><textarea id="writeContent">{ "test": true, "source": "local-tester" }</textarea>
-<label>GitHub Blob SHA (wajib UPDATE/DELETE)</label>
-<div class="inline"><input id="writeSha" placeholder="40 karakter hex" autocomplete="off"><button class="secondary" onclick="copySha()">Copy SHA</button></div>
-<p id="writeHelp" class="muted small">CREATE akan membuat file baru. Jika respons mengandung SHA, SHA akan diisikan otomatis untuk operasi berikutnya.</p>
+<label>GitHub Blob SHA (diambil otomatis)</label>
+<div class="inline"><input id="writeSha" placeholder="SHA akan diambil otomatis" autocomplete="off" readonly><button class="secondary" onclick="copySha()">Copy SHA</button></div>
+<p id="writeHelp" class="muted small">CREATE menghasilkan SHA otomatis. UPDATE dan DELETE mengambil SHA terbaru dari API sebelum operasi dijalankan.</p>
 <button id="writeButton" class="danger" onclick="writeData()">Jalankan Operasi Write</button>
 </div>
 </section>
@@ -169,13 +169,6 @@ function setResponse(http,duration,result,text){
  document.getElementById('lastResult').innerHTML='<span class="pill status-'+result+'">'+result+'</span>';
  document.getElementById('lastResponse').textContent=text;
 }
-function extractBlobSha(data){
- const candidates=[];
- function walk(v,depth){if(!v||typeof v!=='object'||depth>4)return;if(Array.isArray(v)){v.slice(0,10).forEach(x=>walk(x,depth+1));return}
- for(const [k,val] of Object.entries(v)){if(['content_sha','blob_sha','sha'].includes(k.toLowerCase())&&typeof val==='string'&&/^[a-f0-9]{40}$/i.test(val))candidates.push(val);if(val&&typeof val==='object'&&!/content|payload|body/i.test(k))walk(val,depth+1)}
- }
- walk(data,0);return candidates[0]||'';
-}
 async function apiRequest({id,module,path,method='GET',headers={},body,admin=false,sensitive=false}){
  const start=performance.now();let http=0,result='ERROR',detail='Request gagal',data=null,raw='',networkError=false;
  try{
@@ -237,29 +230,65 @@ async function login(){
  button.disabled=false;
 }
 function logout(writeLog=true){jwtToken='';document.getElementById('session').textContent='Belum login. JWT dihapus dari memori.';if(writeLog)uiLog('AUTH-LOGOUT','Authentication','LOCAL','logout','PASS','Sesi lokal dihapus')}
+function clearWriteSha(){
+ document.getElementById('writeSha').value='';
+}
 function updateWriteHelp(){
- const method=document.getElementById('writeMethod').value,content=document.getElementById('writeContent'),sha=document.getElementById('writeSha');
- content.disabled=method==='DELETE';sha.required=method!=='POST';
- document.getElementById('writeHelp').textContent=method==='POST'?'CREATE membuat file baru. SHA dari respons akan diambil otomatis jika format respons menyediakannya.':method==='PUT'?'UPDATE membutuhkan GitHub Blob SHA terkini dari file yang sudah ada.':'DELETE menghapus file dan membutuhkan GitHub Blob SHA terkini.';
+ const method=document.getElementById('writeMethod').value,content=document.getElementById('writeContent');
+ content.disabled=method==='DELETE';
+ document.getElementById('writeHelp').textContent=method==='POST'
+  ?'CREATE membuat file baru. SHA dari respons CREATE akan disimpan otomatis.'
+  :method==='PUT'
+   ?'UPDATE mengambil SHA terbaru dari API secara otomatis sebelum menyimpan perubahan.'
+   :'DELETE mengambil SHA terbaru dari API secara otomatis sebelum menghapus file.';
 }
 async function writeData(){
- if(busy)return;const method=document.getElementById('writeMethod').value,path=document.getElementById('writePath').value.trim(),sha=document.getElementById('writeSha').value.trim(),button=document.getElementById('writeButton');
+ if(busy)return;
+ const method=document.getElementById('writeMethod').value,path=document.getElementById('writePath').value.trim(),button=document.getElementById('writeButton');
  if(!jwtToken){uiLog('WRITE-AUTH','Write Engine',method,'/api/v1/admin/write','FAIL','Admin belum login');return}
- if(!/^public\/data\/[a-zA-Z0-9._/-]+\.json$/.test(path)||path.includes('..')||path.includes('//')){uiLog('WRITE-PATH','Write Engine',method,'/api/v1/admin/write','FAIL','Path harus berupa file JSON di public/data/ tanpa traversal');return}
+ if(!/^public\\/data\\/[a-zA-Z0-9._/-]+\\.json$/.test(path)||path.includes('..')||path.includes('//')){uiLog('WRITE-PATH','Write Engine',method,'/api/v1/admin/write','FAIL','Path harus berupa file JSON di public/data/ tanpa traversal');return}
  const endpoint=method==='POST'?'/api/v1/admin/write/create':method==='PUT'?'/api/v1/admin/write/update':'/api/v1/admin/write/delete';
  const body={path};
- if(method!=='POST'&&!/^[a-f0-9]{40}$/i.test(sha)){uiLog('WRITE-SHA','Write Engine',method,endpoint,'FAIL','SHA wajib tepat 40 karakter hex');return}
- if(method!=='DELETE'){try{body.content=JSON.parse(document.getElementById('writeContent').value)}catch{uiLog('WRITE-JSON','Write Engine',method,endpoint,'FAIL','JSON content tidak valid');return}if(body.content===null||typeof body.content!=='object'){uiLog('WRITE-ROOT','Write Engine',method,endpoint,'FAIL','JSON root harus object atau array');return}}
- if(method!=='POST')body.sha=sha;
+ if(method!=='DELETE'){
+  try{body.content=JSON.parse(document.getElementById('writeContent').value)}
+  catch{uiLog('WRITE-JSON','Write Engine',method,endpoint,'FAIL','JSON content tidak valid');return}
+  if(body.content===null||typeof body.content!=='object'){uiLog('WRITE-ROOT','Write Engine',method,endpoint,'FAIL','JSON root harus object atau array');return}
+ }
  const prompt=method==='POST'?'membuat':method==='PUT'?'memperbarui':'menghapus';
  if(!confirm('Konfirmasi '+method+': '+prompt+' file '+path+' pada Development?')){uiLog('WRITE-CANCEL','Write Engine',method,endpoint,'SKIP','Dibatalkan pengguna');return}
  busy=true;button.disabled=true;
  try{
+  if(method!=='POST'){
+   const shaResult=await apiRequest({
+    id:'WRITE-SHA-'+Date.now(),module:'Write Engine',path:'/api/v1/admin/write/sha?path='+encodeURIComponent(path),
+    method:'GET',admin:true,sensitive:true
+   });
+   const sha=shaResult.data?.sha;
+   if(shaResult.result!=='PASS'||typeof sha!=='string'||!/^[a-f0-9]{40}$/i.test(sha)){
+    clearWriteSha();
+    document.getElementById('writeHelp').textContent='SHA terbaru gagal diperoleh. Operasi dibatalkan; periksa file dan sesi admin.';
+    return;
+   }
+   document.getElementById('writeSha').value=sha;
+   body.sha=sha;
+  }
   const r=await apiRequest({id:'WRITE-'+Date.now(),module:'Write Engine',path:endpoint,method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body),admin:true,sensitive:true});
-  const newSha=extractBlobSha(r.data);
-  if(r.result==='PASS'&&newSha){document.getElementById('writeSha').value=newSha;document.getElementById('writeHelp').textContent='SHA terdeteksi dari respons API dan diisikan otomatis. Verifikasi SHA sebelum UPDATE/DELETE.'}
-  else if(r.result==='PASS'){document.getElementById('writeHelp').textContent='Operasi berhasil, tetapi SHA tidak ditemukan pada field respons yang dikenali. Ambil SHA terbaru dari GitHub sebelum UPDATE/DELETE.'}
-  if(r.result==='PASS'&&method==='DELETE')document.getElementById('writeSha').value='';
+  if(r.result==='PASS'&&method==='DELETE'){
+   clearWriteSha();
+   document.getElementById('writeHelp').textContent='File berhasil dihapus. SHA lokal telah dibersihkan.';
+  }else if(r.result==='PASS'){
+   const newSha=r.data?.sha;
+   if(typeof newSha==='string'&&/^[a-f0-9]{40}$/i.test(newSha)){
+    document.getElementById('writeSha').value=newSha;
+    document.getElementById('writeHelp').textContent='Operasi berhasil. SHA terbaru dari GitHub telah diperbarui otomatis.';
+   }else{
+    clearWriteSha();
+    document.getElementById('writeHelp').textContent='Operasi berhasil, tetapi respons tidak memuat SHA valid. SHA akan diambil ulang saat operasi berikutnya.';
+   }
+  }else{
+   clearWriteSha();
+   document.getElementById('writeHelp').textContent='Operasi gagal. SHA lokal dibersihkan; coba ulang agar SHA terbaru diambil kembali.';
+  }
  }finally{busy=false;button.disabled=false}
 }
 function copySha(){const sha=document.getElementById('writeSha').value.trim();if(sha)copyText(sha);else notify('Belum ada SHA untuk disalin.')}
