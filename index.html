@@ -70,7 +70,7 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
         <div><h2 style="margin-bottom:4px">Website terdaftar</h2><div id="listStatus" class="muted small">Memuat data…</div></div>
         <button id="addButton" type="button">＋ Tambah website</button>
       </div>
-      <div class="toolbar"><input id="searchInput" type="search" placeholder="Cari nama, domain, atau repository…" aria-label="Cari website"><button id="refreshButton" class="secondary" type="button">Muat ulang</button></div>
+      <div class="toolbar"><input id="searchInput" type="search" placeholder="Cari nama, domain, atau repository…" aria-label="Cari website"><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="statusFilter" aria-label="Filter status" style="width:auto;min-width:130px"><option value="all">Semua status</option><option value="active">Aktif</option><option value="paused">Nonaktif</option></select><select id="sortOrder" aria-label="Urutkan website" style="width:auto;min-width:150px"><option value="updated">Terbaru diubah</option><option value="name">Nama A–Z</option><option value="created">Terbaru dibuat</option></select><button id="exportButton" class="secondary" type="button">Ekspor JSON</button><button id="refreshButton" class="secondary" type="button">Muat ulang</button></div></div>
       <div id="dashboardMessage" aria-live="polite"></div>
       <div class="table-wrap">
         <table><thead><tr><th>Website</th><th>Repository</th><th>Status</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
@@ -148,7 +148,9 @@ async function loadWebsites(){
 }
 function renderWebsites(){
  const q=$('searchInput').value.trim().toLowerCase();
- const rows=websites.filter(site=>[site.name,site.url,site.owner,site.repo,site.notes].join(' ').toLowerCase().includes(q));
+ const statusFilter=$('statusFilter').value;const sortOrder=$('sortOrder').value;
+ const rows=websites.filter(site=>(statusFilter==='all'||site.status===statusFilter)&&[site.name,site.url,site.owner,site.repo,site.notes].join(' ').toLowerCase().includes(q));
+ rows.sort((a,b)=>sortOrder==='name'?(a.name||'').localeCompare(b.name||'','id'):sortOrder==='created'?Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0):Date.parse(b.updatedAt||0)-Date.parse(a.updatedAt||0));
  $('totalCount').textContent=websites.length;
  $('activeCount').textContent=websites.filter(x=>x.status!=='paused').length;
  $('pausedCount').textContent=websites.filter(x=>x.status==='paused').length;
@@ -164,9 +166,12 @@ function renderWebsites(){
   const status=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+(site.status==='paused'?'paused':'active');pill.textContent=site.status==='paused'?'Nonaktif':'Aktif';status.append(pill);
   const updated=document.createElement('td');updated.textContent=site.updatedAt?new Date(site.updatedAt).toLocaleDateString('id-ID'):'—';
   const actions=document.createElement('td');actions.className='actions';
+  const open=document.createElement('button');open.type='button';open.className='secondary';open.textContent='Buka';open.disabled=!validUrl(site.url);open.addEventListener('click',()=>window.open(site.url,'_blank','noopener,noreferrer'));
+  const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Salin URL';copy.disabled=!validUrl(site.url);copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(site.url);showMessage('dashboardMessage','URL berhasil disalin.','success')}catch{showMessage('dashboardMessage','Tidak dapat mengakses clipboard pada browser ini.')}});
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary';toggle.textContent=site.status==='paused'?'Aktifkan':'Nonaktifkan';toggle.addEventListener('click',()=>toggleWebsite(site.id));
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Edit';edit.addEventListener('click',()=>openEditor(site.id));
   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='Hapus';remove.addEventListener('click',()=>removeWebsite(site.id));
-  actions.append(edit,remove);tr.append(website,repo,status,updated,actions);$('websiteRows').append(tr);
+  actions.append(open,copy,toggle,edit,remove);tr.append(website,repo,status,updated,actions);$('websiteRows').append(tr);
  }
 }
 async function persistWebsites(next){
@@ -211,7 +216,8 @@ $('logoutButton').addEventListener('click',()=>logout(true));
 function logout(show=true){adminToken='';websites=[];dataExists=false;$('dashboardView').classList.add('hidden');$('loginView').classList.remove('hidden');$('password').value='';if(show)showMessage('loginMessage','Anda telah keluar dari dashboard.','success')}
 $('addButton').addEventListener('click',()=>openEditor());
 $('refreshButton').addEventListener('click',loadWebsites);
-$('searchInput').addEventListener('input',renderWebsites);
+$('searchInput').addEventListener('input',renderWebsites);$('statusFilter').addEventListener('change',renderWebsites);$('sortOrder').addEventListener('change',renderWebsites);
+$('exportButton').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(websites,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='dekeku-websites-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);});
 $('closeEditor').addEventListener('click',closeEditor);$('cancelEditor').addEventListener('click',closeEditor);
 $('editor').addEventListener('click',event=>{if(event.target===$('editor'))closeEditor()});
 $('websiteForm').addEventListener('submit',async event=>{
@@ -220,10 +226,14 @@ $('websiteForm').addEventListener('submit',async event=>{
  if(!validUrl(url)){showMessage('editorMessage','URL harus menggunakan HTTPS yang valid.');return}
  if(!/^[A-Za-z0-9-]+$/.test(owner)||!/^[A-Za-z0-9._-]+$/.test(repo)){showMessage('editorMessage','Username atau nama repository GitHub tidak valid.');return}
  const previous=websites.find(x=>x.id===id);
+ const normalizedHost=new URL(url).hostname.toLowerCase().replace(/^www\./,'');
+ const duplicate=websites.find(x=>x.id!==id&&(new URL(x.url).hostname.toLowerCase().replace(/^www\./,'')===normalizedHost||(x.owner||'').toLowerCase()===owner.toLowerCase()&&(x.repo||'').toLowerCase()===repo.toLowerCase()));
+ if(duplicate){showMessage('editorMessage','Domain atau repository sudah terdaftar pada website: '+(duplicate.name||duplicate.id));return}
  const record={id,name,url,owner,repo,status:$('siteStatus').value,notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const next=previous?websites.map(x=>x.id===id?record:x):[record,...websites];
  try{await persistWebsites(next);closeEditor()}catch(error){showMessage('editorMessage',error.message)}
 });
+async function toggleWebsite(id){const site=websites.find(x=>x.id===id);if(!site)return;const next=websites.map(x=>x.id===id?{...x,status:site.status==='paused'?'active':'paused',updatedAt:new Date().toISOString()}:x);try{await persistWebsites(next)}catch(error){showMessage('dashboardMessage',error.message)}}
 async function removeWebsite(id){
  const site=websites.find(x=>x.id===id);if(!site)return;
  if(!confirm('Hapus "'+site.name+'" dari daftar website?'))return;
