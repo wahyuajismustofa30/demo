@@ -80,7 +80,7 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
       <div class="toolbar"><input id="searchInput" type="search" placeholder="Cari nama, domain, atau repository…" aria-label="Cari website"><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="statusFilter" aria-label="Filter status" style="width:auto;min-width:130px"><option value="all">Semua status</option><option value="active">Aktif</option><option value="paused">Nonaktif</option></select><select id="sortOrder" aria-label="Urutkan website" style="width:auto;min-width:150px"><option value="updated">Terbaru diubah</option><option value="name">Nama A–Z</option><option value="created">Terbaru dibuat</option></select><button id="exportButton" class="secondary" type="button">Ekspor JSON</button><button id="refreshButton" class="secondary" type="button">Muat ulang</button></div></div>
       <div class="bulkbar"><label style="margin:0;display:flex;gap:8px;align-items:center"><input id="selectAll" type="checkbox" style="width:auto"> Pilih semua</label><span id="selectedCount" class="muted small">0 dipilih</span><button id="bulkActivate" class="secondary" type="button" disabled>Aktifkan</button><button id="bulkPause" class="secondary" type="button" disabled>Nonaktifkan</button><button id="bulkDelete" class="danger" type="button" disabled>Hapus pilihan</button></div><div id="dashboardMessage" aria-live="polite"></div>
       <div class="table-wrap">
-        <table><thead><tr><th></th><th>Website</th><th>Repository / kategori</th><th>Status</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
+        <table><thead><tr><th></th><th>Website</th><th>Repository / kategori</th><th>Status</th><th>Prioritas</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
       </div>
       <div id="emptyState" class="empty hidden">Belum ada website terdaftar.<br><span class="small">Gunakan tombol “Tambah website” untuk memulai.</span></div>
     </section>
@@ -165,7 +165,7 @@ async function loadWebsites(){
 function renderWebsites(){
  const q=$('searchInput').value.trim().toLowerCase();
  const statusFilter=$('statusFilter').value;const sortOrder=$('sortOrder').value;
- const rows=websites.filter(site=>(statusFilter==='all'||site.status===statusFilter)&&[site.name,site.url,site.owner,site.repo,site.notes].join(' ').toLowerCase().includes(q));
+ const rows=websites.filter(site=>(statusFilter==='all'||site.status===statusFilter)&&[site.name,site.url,site.owner,site.repo,site.notes,site.category,site.framework,site.hosting,...(site.tags||[])].join(' ').toLowerCase().includes(q));
  rows.sort((a,b)=>sortOrder==='name'?(a.name||'').localeCompare(b.name||'','id'):sortOrder==='created'?Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0):Date.parse(b.updatedAt||0)-Date.parse(a.updatedAt||0));
  $('totalCount').textContent=websites.length;
  $('domainCount').textContent=new Set(websites.map(x=>{try{return new URL(x.url).hostname.toLowerCase()}catch{return null}}).filter(Boolean)).size;
@@ -184,6 +184,7 @@ function renderWebsites(){
   website.append(name,url);
   const repo=document.createElement('td');repo.textContent=(site.owner||'')+'/'+(site.repo||'');if(site.category){const cat=document.createElement('div');cat.className='small muted';cat.textContent=site.category;repo.append(cat)}if(Array.isArray(site.tags)){for(const value of site.tags.slice(0,4)){const tag=document.createElement('span');tag.className='tag';tag.textContent=value;repo.append(tag)}}
   const status=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+(site.status==='paused'?'paused':'active');pill.textContent=site.status==='paused'?'Nonaktif':'Aktif';status.append(pill);
+  const priority=document.createElement('td');const priorityNames={critical:'Kritis',high:'Tinggi',normal:'Normal',low:'Rendah'};priority.textContent=priorityNames[site.priority]||'Normal';
   const updated=document.createElement('td');updated.textContent=site.updatedAt?new Date(site.updatedAt).toLocaleDateString('id-ID'):'—';
   const actions=document.createElement('td');actions.className='actions';
   const open=document.createElement('button');open.type='button';open.className='secondary';open.textContent='Buka';open.disabled=!validUrl(site.url);open.addEventListener('click',()=>window.open(site.url,'_blank','noopener,noreferrer'));
@@ -191,7 +192,7 @@ function renderWebsites(){
   const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary';toggle.textContent=site.status==='paused'?'Aktifkan':'Nonaktifkan';toggle.addEventListener('click',()=>toggleWebsite(site.id));
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Edit';edit.addEventListener('click',()=>openEditor(site.id));
   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='Hapus';remove.addEventListener('click',()=>removeWebsite(site.id));
-  actions.append(open,copy,toggle,edit,remove);tr.append(website,repo,status,updated,actions);$('websiteRows').append(tr);
+  actions.append(open,copy,toggle,edit,remove);tr.append(website,repo,status,priority,updated,actions);$('websiteRows').append(tr);
  }
  updateBulk();
 }
