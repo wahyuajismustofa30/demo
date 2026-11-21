@@ -4,296 +4,231 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>DEKEKU API — Development Tester</title>
+<meta name="theme-color" content="#101827">
+<title>DEKEKU — Website Manager</title>
 <style>
-:root{font-family:system-ui,-apple-system,sans-serif;color:#172033;background:#f1f5f9}
-*{box-sizing:border-box}body{margin:0;padding:14px}.wrap{max-width:1180px;margin:auto}
-h1{font-size:1.45rem;margin:.2rem 0}h2{font-size:1.12rem;margin:0 0 10px}.muted{color:#64748b;font-size:.88rem}
-.card{background:#fff;border:1px solid #dbe3ee;border-radius:12px;padding:15px;margin:12px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
-label{display:block;font-weight:650;font-size:.88rem;margin:10px 0 5px}
-input,textarea,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit;background:white;color:inherit}
-textarea{min-height:100px;resize:vertical}button{border:0;border-radius:8px;padding:10px 12px;background:#1d4ed8;color:white;font-weight:650;cursor:pointer;margin:4px 3px 4px 0}
-button.secondary{background:#475569}button.danger{background:#b91c1c}button.success{background:#15803d}button:disabled{opacity:.5;cursor:not-allowed}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.row>div{flex:1;min-width:150px}
-.pill{display:inline-block;padding:4px 9px;border-radius:20px;background:#e2e8f0;font-size:.8rem;font-weight:700}
-.status-PASS{background:#dcfce7;color:#166534}.status-FAIL,.status-ERROR{background:#fee2e2;color:#991b1b}.status-SKIP{background:#fef3c7;color:#92400e}
-.notice{border-left:4px solid #d97706;background:#fffbeb;padding:10px;border-radius:6px;margin-top:12px}
-.oknote{border-left:4px solid #0d9488;background:#f0fdfa;padding:10px;border-radius:6px}
-.small{font-size:.8rem}.mono,pre,code{font-family:ui-monospace,SFMono-Regular,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
-.output{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;min-height:85px;max-height:420px;overflow:auto;font-size:.82rem}
-#counts{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.count{background:#f8fafc;border:1px solid #e2e8f0;padding:7px 10px;border-radius:8px;font-size:.85rem}
-.logs{overflow:auto}table{width:100%;border-collapse:collapse;font-size:.84rem}th,td{text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{background:#f8fafc;white-space:nowrap}
-.log-detail{white-space:pre-wrap;overflow-wrap:anywhere;max-width:360px}.inline{display:flex;gap:7px;align-items:center}.inline input{flex:1}
-hr{border:0;border-top:1px solid #e2e8f0;margin:14px 0}
-@media(max-width:600px){body{padding:8px}.card{padding:12px}button{padding:9px 10px}.row>div{min-width:100%}table{font-size:.78rem}}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#172033;background:#f3f6fb;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button,input,textarea,select{font:inherit}
+button{border:0;border-radius:9px;padding:10px 14px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(.96)}button:disabled{opacity:.55;cursor:wait}.secondary{background:#e8edf5;color:#263449}.danger{background:#dc2626}.quiet{background:transparent;color:#475569}
+input,textarea,select{width:100%;border:1px solid #d6deea;border-radius:9px;padding:11px 12px;background:#fff;color:#172033;outline:none}
+input:focus,textarea:focus,select:focus{border-color:#5688ef;box-shadow:0 0 0 3px #2563eb18}
+label{display:block;font-size:.84rem;font-weight:700;margin:13px 0 6px}.muted{color:#718096}.small{font-size:.82rem}
+.shell{max-width:1180px;margin:auto;padding:22px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:42px;height:42px;border-radius:13px;background:#172554;color:#fff;display:grid;place-items:center;font-weight:900;letter-spacing:-1px}
+h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-size:.85rem;color:#718096;margin-top:3px}
+.panel{background:#fff;border:1px solid #e1e7f0;border-radius:16px;padding:20px;box-shadow:0 8px 26px #23385b08}
+.login-wrap{max-width:430px;margin:8vh auto}.login-wrap .panel{padding:28px}.login-mark{margin-bottom:22px}
+.notice{background:#fff8e7;border:1px solid #f6dfab;color:#805b13;padding:12px 14px;border-radius:10px;font-size:.84rem;line-height:1.5;margin:16px 0}
+.error{color:#b42318;background:#fff0ef;border:1px solid #ffd2ce;padding:10px 12px;border-radius:9px;margin:12px 0;font-size:.86rem}
+.success{color:#166534;background:#effaf2;border:1px solid #c8eed2;padding:10px 12px;border-radius:9px;margin:12px 0;font-size:.86rem}
+.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid #e1e7f0;border-radius:14px;padding:16px}.stat strong{display:block;font-size:1.5rem;margin-top:5px}
+.toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}.toolbar input{max-width:360px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:13px 11px;border-bottom:1px solid #edf0f5;vertical-align:middle;font-size:.88rem}th{font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;color:#738096;background:#fafbfd}
+.site-name{font-weight:750}.site-url{font-size:.8rem;color:#64748b;overflow-wrap:anywhere}.pill{display:inline-block;padding:4px 9px;border-radius:30px;font-size:.74rem;font-weight:750;background:#e9eef6;color:#46556b}.active{background:#e8f8ee;color:#16723a}.paused{background:#fff4df;color:#9a6200}
+.actions{display:flex;gap:6px;white-space:nowrap}.actions button{padding:7px 10px;font-size:.78rem}.empty{text-align:center;padding:42px 16px;color:#718096}
+.modal-backdrop{position:fixed;inset:0;background:#10182788;display:grid;place-items:center;padding:16px;z-index:5}
+.modal{width:min(100%,560px);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;box-shadow:0 24px 80px #0003}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.full{grid-column:1/-1}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.foot{margin-top:16px;color:#8994a5;font-size:.76rem;text-align:center}
+@media(max-width:650px){.shell{padding:13px}.topbar{align-items:flex-start}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:1.25rem}.toolbar{align-items:stretch;flex-direction:column}.toolbar input{max-width:none}.panel{padding:14px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.login-wrap{margin:5vh auto}.topbar h1{font-size:1.12rem}}
 </style>
 </head>
 <body>
-<main class="wrap">
-<header class="card">
-<h1>DEKEKU API Tester — Development</h1>
-<div class="muted">Target API dikunci ke Development. Origin halaman / Tunnel tidak pernah digunakan sebagai target API.</div>
-<p><strong>Development API:</strong> <code id="apiOrigin"></code> <span id="apiState" class="pill">Siap</span></p>
-<div class="notice"><strong>Perhatian:</strong> Guestbook dan Write Engine dapat mengubah data Development. Operasi perubahan selalu meminta konfirmasi. Jangan gunakan data pribadi. Halaman ini tidak menyediakan target Production.</div>
-</header>
-
-<section class="card">
-<h2>0. Test Runner — pemeriksaan aman</h2>
-<p class="muted">Menjalankan Health, Repository Metadata, dan Public File secara berurutan. Tidak membuat/mengubah/menghapus data dan tidak membutuhkan login.</p>
-<label>Public file yang akan diperiksa</label>
-<input id="suiteReadPath" value="public/data/guestbook/list.json">
-<button id="suiteButton" class="success" onclick="runSafeSuite()">Jalankan Safe Test Suite</button>
-<span id="suiteSummary" class="muted"></span>
-</section>
-
-<section class="grid">
-<div class="card">
-<h2>1. Public API</h2>
-<button onclick="runTest('Health','GET','/api/v1/health')">Check Health</button>
-<button onclick="runTest('Repository Metadata','GET','/api/v1/github/repository')">Repo Metadata</button>
-<label>Public file path</label><input id="readPath" value="public/data/guestbook/list.json">
-<p class="muted small">Gunakan path sesuai kebijakan Public File API. Path harus berada di direktori public/.</p>
-<button onclick="readPublicFile()">Read Public File</button>
+<div id="loginView" class="shell login-wrap">
+  <div class="panel">
+    <div class="brand login-mark"><div class="logo">D</div><div><h1>DEKEKU Manager</h1><div class="sub">Dashboard pengelolaan website</div></div></div>
+    <h2>Masuk sebagai administrator</h2>
+    <p class="muted small">Gunakan akun admin DEKEKU API. Sesi hanya aktif selama halaman ini terbuka.</p>
+    <form id="loginForm">
+      <label for="username">Username</label><input id="username" name="username" autocomplete="username" value="admin" required>
+      <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button id="loginButton" type="submit" style="width:100%;margin-top:18px">Masuk ke Dashboard</button>
+    </form>
+    <div id="loginMessage" aria-live="polite"></div>
+    <div class="notice">Data website disimpan pada file publik <code>public/data/websites.json</code> di repository. Jangan masukkan password, token, atau data rahasia ke dalam catatan website.</div>
+  </div>
+  <div class="foot">DEKEKU · Admin Console · Development Worker</div>
 </div>
 
-<div class="card">
-<h2>2. Guestbook Submission</h2>
-<label>Nama (tidak disimpan di log)</label><input id="gbName" value="Tester HTML" maxlength="100">
-<label>Pesan (tidak disimpan di log)</label><textarea id="gbMessage" maxlength="2000">Pesan pengujian Development</textarea>
-<button id="gbButton" onclick="submitGuestbook()">Submit Guestbook</button>
-<p class="muted small">Berhasil mengirim dapat membuat entri baru pada database Development.</p>
+<div id="dashboardView" class="hidden">
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="logo">D</div><div><h1>Website Manager</h1><div class="sub">Kelola website yang terdaftar di DEKEKU</div></div></div>
+      <button id="logoutButton" class="secondary" type="button">Keluar</button>
+    </header>
+    <div class="notice">Mode Development. Perubahan daftar website langsung disimpan melalui Cloudflare Worker ke GitHub. Daftar ini bersifat publik karena menggunakan penyimpanan file JSON publik.</div>
+    <section class="stats">
+      <div class="stat"><span class="muted small">Total website</span><strong id="totalCount">0</strong></div>
+      <div class="stat"><span class="muted small">Aktif</span><strong id="activeCount">0</strong></div>
+      <div class="stat"><span class="muted small">Nonaktif</span><strong id="pausedCount">0</strong></div>
+    </section>
+    <section class="panel">
+      <div class="toolbar">
+        <div><h2 style="margin-bottom:4px">Website terdaftar</h2><div id="listStatus" class="muted small">Memuat data…</div></div>
+        <button id="addButton" type="button">＋ Tambah website</button>
+      </div>
+      <div class="toolbar"><input id="searchInput" type="search" placeholder="Cari nama, domain, atau repository…" aria-label="Cari website"><button id="refreshButton" class="secondary" type="button">Muat ulang</button></div>
+      <div id="dashboardMessage" aria-live="polite"></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Website</th><th>Repository</th><th>Status</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
+      </div>
+      <div id="emptyState" class="empty hidden">Belum ada website terdaftar.<br><span class="small">Gunakan tombol “Tambah website” untuk memulai.</span></div>
+    </section>
+    <div class="foot">Semua operasi data dilakukan melalui Development Worker · API target dikunci</div>
+  </main>
 </div>
 
-<div class="card">
-<h2>3. Admin Authentication</h2>
-<label>Username</label><input id="loginUser" value="admin" autocomplete="username">
-<label>Password</label><input id="loginPass" type="password" autocomplete="current-password">
-<button id="loginButton" onclick="login()">Login</button>
-<button class="secondary" onclick="logout()">Logout</button>
-<p id="session" class="muted">Belum login. JWT hanya disimpan di memori halaman.</p>
+<div id="editor" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+  <section class="modal">
+    <div class="modal-head"><h2 id="editorTitle">Tambah website</h2><button id="closeEditor" class="quiet" type="button" aria-label="Tutup">✕</button></div>
+    <form id="websiteForm">
+      <input id="recordId" type="hidden">
+      <div class="form-grid">
+        <div class="full"><label for="siteName">Nama website *</label><input id="siteName" maxlength="100" required placeholder="Contoh: Website Arto Printing"></div>
+        <div class="full"><label for="siteUrl">URL website *</label><input id="siteUrl" type="url" maxlength="300" required placeholder="https://contoh.com"></div>
+        <div><label for="repoOwner">GitHub username *</label><input id="repoOwner" maxlength="100" required placeholder="username"></div>
+        <div><label for="repoName">Repository *</label><input id="repoName" maxlength="100" required placeholder="repository"></div>
+        <div class="full"><label for="siteStatus">Status</label><select id="siteStatus"><option value="active">Aktif</option><option value="paused">Nonaktif</option></select></div>
+        <div class="full"><label for="siteNotes">Catatan (opsional)</label><textarea id="siteNotes" rows="3" maxlength="500" placeholder="Keterangan singkat website"></textarea></div>
+      </div>
+      <div id="editorMessage" aria-live="polite"></div>
+      <div class="modal-actions"><button id="cancelEditor" class="secondary" type="button">Batal</button><button id="saveButton" type="submit">Simpan website</button></div>
+    </form>
+  </section>
 </div>
-
-<div class="card">
-<h2>4. Admin Write Engine</h2>
-<label>Operasi</label><select id="writeMethod" onchange="updateWriteHelp()"><option value="POST">CREATE (POST)</option><option value="PUT">UPDATE (PUT)</option><option value="DELETE">DELETE</option></select>
-<label>File path (public/data/*.json)</label><input id="writePath" value="public/data/test-manual.json" onchange="clearWriteSha()">
-<label>JSON content (CREATE/UPDATE)</label><textarea id="writeContent">{ "test": true, "source": "local-tester" }</textarea>
-<label>GitHub Blob SHA (diambil otomatis)</label>
-<div class="inline"><input id="writeSha" placeholder="SHA akan diambil otomatis" autocomplete="off" readonly><button class="secondary" onclick="copySha()">Copy SHA</button></div>
-<p id="writeHelp" class="muted small">CREATE menghasilkan SHA otomatis. UPDATE dan DELETE mengambil SHA terbaru dari API sebelum operasi dijalankan.</p>
-<button id="writeButton" class="danger" onclick="writeData()">Jalankan Operasi Write</button>
-</div>
-</section>
-
-<section class="card">
-<h2>5. Response terakhir</h2>
-<div class="row"><div><span class="muted">HTTP status</span><p id="lastHttp"><strong>—</strong></p></div><div><span class="muted">Durasi</span><p id="lastDuration"><strong>—</strong></p></div><div><span class="muted">Hasil</span><p id="lastResult"><span class="pill">Belum ada request</span></p></div></div>
-<pre id="lastResponse" class="output">Belum ada request.</pre>
-<button class="secondary" onclick="copyLastResponse()">Copy response</button>
-</section>
-
-<section class="card">
-<h2>6. Logging</h2>
-<p class="muted small">Maksimal 300 entri, disimpan lokal di browser. Password, JWT, Authorization, isi Guestbook, payload Write, dan isi file tidak disimpan dalam log.</p>
-<div id="counts"></div>
-<div class="row">
-<div><label>Filter status</label><select id="statusFilter" onchange="renderLogs()"><option value="ALL">ALL</option><option>PASS</option><option>FAIL</option><option>ERROR</option><option>SKIP</option></select></div>
-<div><label>Filter modul</label><select id="moduleFilter" onchange="renderLogs()"><option value="ALL">Semua modul</option><option>Test Runner</option><option>Public</option><option>Guestbook</option><option>Authentication</option><option>Write Engine</option><option>UI</option></select></div>
-<div><label>Pencarian</label><input id="searchFilter" placeholder="Test ID / endpoint" oninput="renderLogs()"></div>
-</div>
-<div class="row">
-<button onclick="copyVisibleLogs()">Copy log yang tampil</button>
-<button class="secondary" onclick="exportLogs()">Export JSON</button>
-<button class="danger" onclick="clearLogs()">Hapus semua log</button>
-</div>
-<div class="logs"><table><thead><tr><th>Waktu</th><th>Test ID / Modul</th><th>Request</th><th>HTTP</th><th>Durasi</th><th>Status</th><th>Detail</th><th>Copy</th></tr></thead><tbody id="logRows"><tr><td colspan="8">Belum ada logging.</td></tr></tbody></table></div>
-</section>
-<footer class="muted small">DEKEKU API Development Tester · Semua request dibatasi ke endpoint /api/v1/ pada Development Worker.</footer>
-</main>
 
 <script>
 'use strict';
 const API_ORIGIN='https://dekeku-api-dev.wahyuajismustofa30.workers.dev';
-const STORAGE_KEY='dekeku_dev_tester_logs_v2';
-const MAX_LOGS=300;
+const DATA_PATH='public/data/websites.json';
 const REQUEST_TIMEOUT=20000;
-let jwtToken='';
-let logs=[];
+let adminToken='';
+let websites=[];
+let dataExists=false;
 let busy=false;
-let guestbookBusy=false;
-let lastResponseText='Belum ada request.';
-document.getElementById('apiOrigin').textContent=API_ORIGIN;
-try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))logs=saved.slice(0,MAX_LOGS)}catch{}
-function safeText(v){return String(v??'').replace(/[\r\n\t]+/g,' ').slice(0,500)}
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function saveLogs(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(logs.slice(0,MAX_LOGS)))}catch{}}
-function addLog(e){const item={time:new Date().toISOString(),id:safeText(e.id),module:safeText(e.module),method:safeText(e.method),path:safeText(e.path),http:Number(e.http)||0,duration:Number(e.duration)||0,result:e.result,detail:safeText(e.detail)};logs.unshift(item);logs=logs.slice(0,MAX_LOGS);saveLogs();renderLogs()}
-function renderLogs(){
- const status=document.getElementById('statusFilter').value,module=document.getElementById('moduleFilter').value,q=document.getElementById('searchFilter').value.toLowerCase();
- const visible=logs.filter(x=>(status==='ALL'||x.result===status)&&(module==='ALL'||x.module===module)&&(!q||(x.id+' '+x.path+' '+x.detail).toLowerCase().includes(q)));
- document.getElementById('counts').innerHTML=['ALL','PASS','FAIL','ERROR','SKIP'].map(s=>'<span class="count">'+s+': '+logs.filter(x=>s==='ALL'||x.result===s).length+'</span>').join('');
- const tbody=document.getElementById('logRows');
- if(!visible.length){tbody.innerHTML='<tr><td colspan="8">Tidak ada log yang cocok.</td></tr>';return}
- tbody.innerHTML=visible.map(x=>'<tr><td>'+esc(new Date(x.time).toLocaleString())+'</td><td><strong>'+esc(x.id)+'</strong><br>'+esc(x.module)+'</td><td>'+esc(x.method)+'<br><code>'+esc(x.path)+'</code></td><td>'+ (x.http||'—')+'</td><td>'+x.duration+' ms</td><td><span class="pill status-'+esc(x.result)+'">'+esc(x.result)+'</span></td><td class="log-detail">'+esc(x.detail)+'</td><td><button class="secondary" onclick="copyLogById(\''+esc(x.id)+'\',\''+esc(x.time)+'\')">Copy</button></td></tr>').join('');
+
+const $=id=>document.getElementById(id);
+function showMessage(target,message,type='error'){const el=$(target);el.className=type;el.textContent=message}
+function clearMessage(target){const el=$(target);el.className='';el.textContent=''}
+function apiUrl(path){const url=new URL(path,API_ORIGIN);if(url.origin!==API_ORIGIN||!url.pathname.startsWith('/api/v1/'))throw new Error('Endpoint tidak diizinkan');return url}
+async function request(path,{method='GET',body=null,auth=true}={}){
+ const headers={'Accept':'application/json'};
+ if(body!==null)headers['Content-Type']='application/json';
+ if(auth){if(!adminToken)throw new Error('Sesi admin berakhir. Silakan login kembali.');headers.Authorization='Bearer '+adminToken}
+ const response=await fetch(apiUrl(path),{method,headers,body:body===null?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(REQUEST_TIMEOUT)});
+ const raw=await response.text();let data=null;try{data=raw?JSON.parse(raw):null}catch{}
+ if(!response.ok){if(response.status===401){logout(false)}throw new Error(data?.message||data?.error||('Worker merespons HTTP '+response.status))}
+ return data;
 }
-function formatLog(x){return ['Time: '+x.time,'Test ID: '+x.id,'Module: '+x.module,'Request: '+x.method+' '+x.path,'HTTP: '+(x.http||'—'),'Duration: '+x.duration+' ms','Result: '+x.result,'Detail: '+x.detail].join('\n')}
-async function copyText(value){try{await navigator.clipboard.writeText(String(value));notify('Berhasil disalin.')}catch{notify('Clipboard tidak tersedia. Gunakan halaman HTTPS dan izinkan akses clipboard.')}}
-function notify(message){const el=document.getElementById('apiState');el.textContent=message;setTimeout(()=>{el.textContent='Development terkunci'},2500)}
-function copyLogById(id,time){const x=logs.find(v=>v.id===id&&v.time===time);if(x)copyText(formatLog(x))}
-function getVisibleLogs(){const status=document.getElementById('statusFilter').value,module=document.getElementById('moduleFilter').value,q=document.getElementById('searchFilter').value.toLowerCase();return logs.filter(x=>(status==='ALL'||x.result===status)&&(module==='ALL'||x.module===module)&&(!q||(x.id+' '+x.path+' '+x.detail).toLowerCase().includes(q)))}
-function copyVisibleLogs(){copyText(getVisibleLogs().map(formatLog).join('\n\n')||'Tidak ada log.')}
-function exportLogs(){const blob=new Blob([JSON.stringify(getVisibleLogs(),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='dekeku-dev-logs.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function clearLogs(){if(confirm('Hapus seluruh logging yang tersimpan di browser ini?')){logs=[];saveLogs();renderLogs()}}
-function classify(http,networkError){if(networkError)return'ERROR';return http>=200&&http<300?'PASS':'FAIL'}
-function getUrl(path){
- const u=new URL(path,API_ORIGIN);
- if(u.origin!==API_ORIGIN||!u.pathname.startsWith('/api/v1/'))throw Error('Path API tidak diizinkan. Target hanya Development /api/v1/.');
- return u;
+function parseWebsiteList(payload){
+ if(Array.isArray(payload))return payload;
+ if(payload&&Array.isArray(payload.websites))return payload.websites;
+ if(payload&&Array.isArray(payload.data))return payload.data;
+ if(payload&&typeof payload.content==='string'){try{const parsed=JSON.parse(payload.content);if(Array.isArray(parsed))return parsed}catch{}}
+ throw new Error('Format public/data/websites.json tidak valid. Data harus berupa JSON array.');
 }
-function redact(value,key=''){
- if(/authorization|token|password|secret|credential|private.?key|content|payload|body|message.?text|guestbook/i.test(key))return '[REDACTED]';
- if(Array.isArray(value))return value.slice(0,50).map(v=>redact(v));
- if(value&&typeof value==='object'){const out={};for(const [k,v] of Object.entries(value).slice(0,80))out[k]=redact(v,k);return out}
- if(typeof value==='string')return value.length>1000?value.slice(0,1000)+'…':value;
- return value;
-}
-function responseSummary(data,raw){
- if(data&&typeof data==='object')return JSON.stringify(redact(data),null,2);
- return raw?String(raw).slice(0,3000):'(Respons kosong)';
-}
-function setResponse(http,duration,result,text){
- lastResponseText=text;
- document.getElementById('lastHttp').innerHTML='<strong>'+ (http||'—')+'</strong>';
- document.getElementById('lastDuration').innerHTML='<strong>'+duration+' ms</strong>';
- document.getElementById('lastResult').innerHTML='<span class="pill status-'+result+'">'+result+'</span>';
- document.getElementById('lastResponse').textContent=text;
-}
-async function apiRequest({id,module,path,method='GET',headers={},body,admin=false,sensitive=false}){
- const start=performance.now();let http=0,result='ERROR',detail='Request gagal',data=null,raw='',networkError=false;
+async function loadWebsites(){
+ $('listStatus').textContent='Memuat data dari Worker…';$('refreshButton').disabled=true;
  try{
-  const url=getUrl(path);const h=new Headers(headers);h.set('Accept','application/json');
-  if(admin){if(!jwtToken)throw Error('Admin belum login. Silakan login terlebih dahulu.');h.set('Authorization','Bearer '+jwtToken)}
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT);
-  let res;try{res=await fetch(url,{method,headers:h,body,redirect:'error',signal:controller.signal})}finally{clearTimeout(timeout)}
-  http=res.status;raw=await res.text();try{data=raw?JSON.parse(raw):null}catch{data=null}
-  result=classify(http,false);
-  if(http===401&&admin){logout(false);detail='HTTP 401: sesi admin dihapus. Login kembali.'}
-  else if(data&&typeof data==='object'){detail=safeText(data.message||data.error||data.code||res.statusText||'Request selesai')}
-  else detail=safeText(res.statusText||'Request selesai');
-  const display=responseSummary(data,raw);
-  setResponse(http,Math.round(performance.now()-start),result,display);
-  return{http,result,data,raw,detail,duration:Math.round(performance.now()-start)};
- }catch(e){
-  networkError=true;detail=e.name==='AbortError'?'Request timeout setelah 20 detik':safeText(e.message||'Network/CORS error');
-  result='ERROR';setResponse(0,Math.round(performance.now()-start),result,detail);
-  return{http:0,result,data:null,raw:'',detail,duration:Math.round(performance.now()-start)};
- }finally{
-  addLog({id,module,method,path:new URL(getUrl(path)).pathname,http,duration:Math.round(performance.now()-start),result,detail:sensitive&&result==='PASS'?'Request berhasil; detail sensitif disembunyikan':detail});
- }
-}
-async function runTest(name,method,path){return apiRequest({id:'PUB-'+Date.now(),module:'Public',path,method})}
-async function readPublicFile(){const p=document.getElementById('readPath').value.trim();if(!p){uiLog('READ-VALIDATE','Public','GET','/api/v1/github/file','FAIL','Path wajib diisi');return}return apiRequest({id:'READ-'+Date.now(),module:'Public',path:'/api/v1/github/file?path='+encodeURIComponent(p)})}
-function uiLog(id,module,method,path,result,detail){addLog({id,module,method,path,http:0,duration:0,result,detail})}
-async function runSafeSuite(){
- if(busy)return;busy=true;const button=document.getElementById('suiteButton');button.disabled=true;document.getElementById('suiteSummary').textContent='Sedang berjalan…';
- const cases=[['Health','/api/v1/health'],['Repository Metadata','/api/v1/github/repository']];
- const file=document.getElementById('suiteReadPath').value.trim();
- if(file)cases.push(['Public File','/api/v1/github/file?path='+encodeURIComponent(file)]);
- let pass=0,fail=0;
- try{for(const [name,path] of cases){const r=await apiRequest({id:'SUITE-'+name.toUpperCase().replace(/[^A-Z]+/g,'-')+'-'+Date.now(),module:'Test Runner',path,method:'GET'});if(r.result==='PASS')pass++;else fail++}}
- finally{button.disabled=false;busy=false;document.getElementById('suiteSummary').textContent='Selesai: '+pass+' PASS, '+fail+' FAIL/ERROR dari '+cases.length+' tes.'}
-}
-async function submitGuestbook(){
- if(guestbookBusy)return;const name=document.getElementById('gbName').value.trim(),message=document.getElementById('gbMessage').value.trim(),button=document.getElementById('gbButton');
- if(!name||!message){uiLog('GB-VALIDATE','Guestbook','POST','/api/v1/public/submit','FAIL','Nama dan pesan wajib diisi');return}
- if(!confirm('Kirim satu entri Guestbook ke Development? Entri baru akan tersimpan.')){uiLog('GB-CANCEL','Guestbook','POST','/api/v1/public/submit','SKIP','Dibatalkan pengguna');return}
- guestbookBusy=true;button.disabled=true;
- try{const r=await apiRequest({id:'GB-'+Date.now(),module:'Guestbook',path:'/api/v1/public/submit',method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,message}),sensitive:true});if(r.http===201){document.getElementById('gbName').value='';document.getElementById('gbMessage').value=''}}
- finally{guestbookBusy=false;button.disabled=false}
-}
-async function login(){
- const user=document.getElementById('loginUser').value.trim(),passwordInput=document.getElementById('loginPass'),password=passwordInput.value;
- if(!user||!password){uiLog('AUTH-VALIDATE','Authentication','POST','/api/v1/admin/login','FAIL','Username dan password wajib diisi');return}
- passwordInput.value='';const button=document.getElementById('loginButton');button.disabled=true;
- const start=performance.now();let http=0,result='ERROR',detail='Login gagal';
- try{
-  const res=await fetch(getUrl('/api/v1/admin/login'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username:user,password}),redirect:'error',signal:AbortSignal.timeout(REQUEST_TIMEOUT)});
-  http=res.status;const data=await res.json().catch(()=>null);
-  if(http===200&&typeof data?.access_token==='string'&&data.access_token){jwtToken=data.access_token;result='PASS';detail='Login berhasil; JWT hanya disimpan di memori'}
-  else{jwtToken='';result='FAIL';detail=safeText(data?.message||data?.error||'Login ditolak atau access_token tidak ditemukan')}
-  document.getElementById('lastResponse').textContent='HTTP '+http+'\n'+detail;
- }catch(e){jwtToken='';detail=e.name==='TimeoutError'?'Login timeout':safeText(e.message);result='ERROR'}
- const duration=Math.round(performance.now()-start);setResponse(http,duration,result,'HTTP '+(http||'—')+'\n'+detail);
- document.getElementById('session').textContent=jwtToken?'Sesi admin aktif · JWT di memori halaman.':'Belum login.';
- addLog({id:'AUTH-'+Date.now(),module:'Authentication',method:'POST',path:'/api/v1/admin/login',http,duration,result,detail});
- button.disabled=false;
-}
-function logout(writeLog=true){jwtToken='';document.getElementById('session').textContent='Belum login. JWT dihapus dari memori.';if(writeLog)uiLog('AUTH-LOGOUT','Authentication','LOCAL','logout','PASS','Sesi lokal dihapus')}
-function clearWriteSha(){
- document.getElementById('writeSha').value='';
-}
-function updateWriteHelp(){
- const method=document.getElementById('writeMethod').value,content=document.getElementById('writeContent');
- content.disabled=method==='DELETE';
- document.getElementById('writeHelp').textContent=method==='POST'
-  ?'CREATE membuat file baru. SHA dari respons CREATE akan disimpan otomatis.'
-  :method==='PUT'
-   ?'UPDATE mengambil SHA terbaru dari API secara otomatis sebelum menyimpan perubahan.'
-   :'DELETE mengambil SHA terbaru dari API secara otomatis sebelum menghapus file.';
-}
-async function writeData(){
- if(busy)return;
- const method=document.getElementById('writeMethod').value,path=document.getElementById('writePath').value.trim(),button=document.getElementById('writeButton');
- if(!jwtToken){uiLog('WRITE-AUTH','Write Engine',method,'/api/v1/admin/write','FAIL','Admin belum login');return}
- if(!path.startsWith('public/data/')||!path.endsWith('.json')||path.includes('..')||path.includes('//')){uiLog('WRITE-PATH','Write Engine',method,'/api/v1/admin/write','FAIL','Path harus berupa file JSON di public/data/ tanpa traversal');return}
- const endpoint=method==='POST'?'/api/v1/admin/write/create':method==='PUT'?'/api/v1/admin/write/update':'/api/v1/admin/write/delete';
- const body={path};
- if(method!=='DELETE'){
-  try{body.content=JSON.parse(document.getElementById('writeContent').value)}
-  catch{uiLog('WRITE-JSON','Write Engine',method,endpoint,'FAIL','JSON content tidak valid');return}
-  if(body.content===null||typeof body.content!=='object'){uiLog('WRITE-ROOT','Write Engine',method,endpoint,'FAIL','JSON root harus object atau array');return}
- }
- const prompt=method==='POST'?'membuat':method==='PUT'?'memperbarui':'menghapus';
- if(!confirm('Konfirmasi '+method+': '+prompt+' file '+path+' pada Development?')){uiLog('WRITE-CANCEL','Write Engine',method,endpoint,'SKIP','Dibatalkan pengguna');return}
- busy=true;button.disabled=true;
- try{
-  if(method!=='POST'){
-   const shaResult=await apiRequest({
-    id:'WRITE-SHA-'+Date.now(),module:'Write Engine',path:'/api/v1/admin/write/sha?path='+encodeURIComponent(path),
-    method:'GET',admin:true,sensitive:true
-   });
-   const sha=shaResult.data?.sha;
-   if(shaResult.result!=='PASS'||typeof sha!=='string'||!/^[a-f0-9]{40}$/i.test(sha)){
-    clearWriteSha();
-    document.getElementById('writeHelp').textContent='SHA terbaru gagal diperoleh. Operasi dibatalkan; periksa file dan sesi admin.';
-    return;
-   }
-   document.getElementById('writeSha').value=sha;
-   body.sha=sha;
-  }
-  const r=await apiRequest({id:'WRITE-'+Date.now(),module:'Write Engine',path:endpoint,method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body),admin:true,sensitive:true});
-  if(r.result==='PASS'&&method==='DELETE'){
-   clearWriteSha();
-   document.getElementById('writeHelp').textContent='File berhasil dihapus. SHA lokal telah dibersihkan.';
-  }else if(r.result==='PASS'){
-   const newSha=r.data?.sha;
-   if(typeof newSha==='string'&&/^[a-f0-9]{40}$/i.test(newSha)){
-    document.getElementById('writeSha').value=newSha;
-    document.getElementById('writeHelp').textContent='Operasi berhasil. SHA terbaru dari GitHub telah diperbarui otomatis.';
-   }else{
-    clearWriteSha();
-    document.getElementById('writeHelp').textContent='Operasi berhasil, tetapi respons tidak memuat SHA valid. SHA akan diambil ulang saat operasi berikutnya.';
-   }
+  const result=await request('/api/v1/github/file?path='+encodeURIComponent(DATA_PATH));
+  websites=parseWebsiteList(result);dataExists=true;renderWebsites();$('listStatus').textContent='Data tersinkronisasi · '+new Date().toLocaleTimeString('id-ID');
+  clearMessage('dashboardMessage');
+ }catch(error){
+  if(/HTTP 404|not found|NOT_FOUND/i.test(error.message)){
+   websites=[];dataExists=false;renderWebsites();$('listStatus').textContent='File data belum dibuat · akan dibuat saat website pertama disimpan';
+   showMessage('dashboardMessage','Belum ada file data website. Tambahkan website pertama untuk membuat penyimpanan.','success');
   }else{
-   clearWriteSha();
-   document.getElementById('writeHelp').textContent='Operasi gagal. SHA lokal dibersihkan; coba ulang agar SHA terbaru diambil kembali.';
+   $('listStatus').textContent='Gagal memuat data';showMessage('dashboardMessage',error.message);
   }
- }finally{busy=false;button.disabled=false}
+ }finally{$('refreshButton').disabled=false}
 }
-function copySha(){const sha=document.getElementById('writeSha').value.trim();if(sha)copyText(sha);else notify('Belum ada SHA untuk disalin.')}
-function copyLastResponse(){copyText(lastResponseText)}
-renderLogs();updateWriteHelp();document.getElementById('apiState').textContent='Development terkunci';
+function renderWebsites(){
+ const q=$('searchInput').value.trim().toLowerCase();
+ const rows=websites.filter(site=>[site.name,site.url,site.owner,site.repo,site.notes].join(' ').toLowerCase().includes(q));
+ $('totalCount').textContent=websites.length;
+ $('activeCount').textContent=websites.filter(x=>x.status!=='paused').length;
+ $('pausedCount').textContent=websites.filter(x=>x.status==='paused').length;
+ $('websiteRows').replaceChildren();
+ $('emptyState').classList.toggle('hidden',rows.length!==0);
+ if(!rows.length)return;
+ for(const site of rows){
+  const tr=document.createElement('tr');
+  const website=document.createElement('td');const name=document.createElement('div');name.className='site-name';name.textContent=site.name||'(Tanpa nama)';
+  const url=document.createElement('a');url.className='site-url';url.href=site.url;url.target='_blank';url.rel='noopener noreferrer';url.textContent=site.url;
+  website.append(name,url);
+  const repo=document.createElement('td');repo.textContent=(site.owner||'')+'/'+(site.repo||'');
+  const status=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+(site.status==='paused'?'paused':'active');pill.textContent=site.status==='paused'?'Nonaktif':'Aktif';status.append(pill);
+  const updated=document.createElement('td');updated.textContent=site.updatedAt?new Date(site.updatedAt).toLocaleDateString('id-ID'):'—';
+  const actions=document.createElement('td');actions.className='actions';
+  const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Edit';edit.addEventListener('click',()=>openEditor(site.id));
+  const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='Hapus';remove.addEventListener('click',()=>removeWebsite(site.id));
+  actions.append(edit,remove);tr.append(website,repo,status,updated,actions);$('websiteRows').append(tr);
+ }
+}
+async function persistWebsites(next){
+ if(busy)throw new Error('Operasi lain sedang berjalan.');
+ busy=true;$('saveButton').disabled=true;$('addButton').disabled=true;$('refreshButton').disabled=true;
+ try{
+  const payload=JSON.stringify(next,null,2);
+  if(!dataExists){
+   await request('/api/v1/admin/write/create',{method:'POST',body:{path:DATA_PATH,content:next}});
+   dataExists=true;
+  }else{
+   const shaResult=await request('/api/v1/admin/write/sha?path='+encodeURIComponent(DATA_PATH));
+   const sha=shaResult?.sha;
+   if(typeof sha!=='string'||!/^[a-f0-9]{40}$/i.test(sha))throw new Error('Worker tidak mengembalikan SHA valid. Data tidak diubah.');
+   await request('/api/v1/admin/write/update',{method:'PUT',body:{path:DATA_PATH,sha,content:next}});
+  }
+  websites=next;renderWebsites();$('listStatus').textContent='Tersimpan ke GitHub · '+new Date().toLocaleTimeString('id-ID');
+  showMessage('dashboardMessage','Perubahan berhasil disimpan.','success');
+ }finally{busy=false;$('saveButton').disabled=false;$('addButton').disabled=false;$('refreshButton').disabled=false}
+}
+function openEditor(id=null){
+ clearMessage('editorMessage');$('websiteForm').reset();$('recordId').value='';
+ if(id){
+  const site=websites.find(x=>x.id===id);if(!site)return;
+  $('editorTitle').textContent='Edit website';$('recordId').value=site.id;$('siteName').value=site.name||'';$('siteUrl').value=site.url||'';
+  $('repoOwner').value=site.owner||'';$('repoName').value=site.repo||'';$('siteStatus').value=site.status||'active';$('siteNotes').value=site.notes||'';
+ }else{$('editorTitle').textContent='Tambah website';$('siteStatus').value='active'}
+ $('editor').classList.remove('hidden');$('siteName').focus();
+}
+function closeEditor(){$('editor').classList.add('hidden')}
+function validUrl(value){try{const url=new URL(value);return url.protocol==='https:'&&!!url.hostname}catch{return false}}
+$('loginForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=$('loginButton');button.disabled=true;clearMessage('loginMessage');
+ const username=$('username').value.trim(),password=$('password').value;$('password').value='';
+ try{
+  const result=await request('/api/v1/admin/login',{method:'POST',auth:false,body:{username,password}});
+  const token=result?.access_token;if(typeof token!=='string'||!token)throw new Error('Login tidak mengembalikan access_token.');
+  adminToken=token;$('loginView').classList.add('hidden');$('dashboardView').classList.remove('hidden');await loadWebsites();
+ }catch(error){adminToken='';showMessage('loginMessage',error.message)}
+ finally{button.disabled=false}
+});
+$('logoutButton').addEventListener('click',()=>logout(true));
+function logout(show=true){adminToken='';websites=[];dataExists=false;$('dashboardView').classList.add('hidden');$('loginView').classList.remove('hidden');$('password').value='';if(show)showMessage('loginMessage','Anda telah keluar dari dashboard.','success')}
+$('addButton').addEventListener('click',()=>openEditor());
+$('refreshButton').addEventListener('click',loadWebsites);
+$('searchInput').addEventListener('input',renderWebsites);
+$('closeEditor').addEventListener('click',closeEditor);$('cancelEditor').addEventListener('click',closeEditor);
+$('editor').addEventListener('click',event=>{if(event.target===$('editor'))closeEditor()});
+$('websiteForm').addEventListener('submit',async event=>{
+ event.preventDefault();clearMessage('editorMessage');
+ const id=$('recordId').value||crypto.randomUUID(),name=$('siteName').value.trim(),url=$('siteUrl').value.trim(),owner=$('repoOwner').value.trim(),repo=$('repoName').value.trim();
+ if(!validUrl(url)){showMessage('editorMessage','URL harus menggunakan HTTPS yang valid.');return}
+ if(!/^[A-Za-z0-9-]+$/.test(owner)||!/^[A-Za-z0-9._-]+$/.test(repo)){showMessage('editorMessage','Username atau nama repository GitHub tidak valid.');return}
+ const previous=websites.find(x=>x.id===id);
+ const record={id,name,url,owner,repo,status:$('siteStatus').value,notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const next=previous?websites.map(x=>x.id===id?record:x):[record,...websites];
+ try{await persistWebsites(next);closeEditor()}catch(error){showMessage('editorMessage',error.message)}
+});
+async function removeWebsite(id){
+ const site=websites.find(x=>x.id===id);if(!site)return;
+ if(!confirm('Hapus "'+site.name+'" dari daftar website?'))return;
+ try{await persistWebsites(websites.filter(x=>x.id!==id))}catch(error){showMessage('dashboardMessage',error.message)}
+}
 </script>
 </body>
 </html>
