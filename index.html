@@ -33,6 +33,11 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
 .modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.full{grid-column:1/-1}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 .foot{margin-top:16px;color:#8994a5;font-size:.76rem;text-align:center}
+.navtabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.navtabs button{background:#e8edf5;color:#344256}.navtabs button.selected{background:#172554;color:#fff}
+.bulkbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#f5f7fb;padding:10px;border-radius:10px;margin:10px 0}
+.tag{display:inline-block;background:#eef2ff;color:#4338ca;border-radius:20px;padding:3px 8px;font-size:.72rem;margin:3px}
+.extra-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:0 0 16px}
+@media(max-width:650px){.extra-stats{gap:8px}.navtabs{overflow:auto;flex-wrap:nowrap}.navtabs button{white-space:nowrap}}
 @media(max-width:650px){.shell{padding:13px}.topbar{align-items:flex-start}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:1.25rem}.toolbar{align-items:stretch;flex-direction:column}.toolbar input{max-width:none}.panel{padding:14px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.login-wrap{margin:5vh auto}.topbar h1{font-size:1.12rem}}
 </style>
 </head>
@@ -65,18 +70,23 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
       <div class="stat"><span class="muted small">Aktif</span><strong id="activeCount">0</strong></div>
       <div class="stat"><span class="muted small">Nonaktif</span><strong id="pausedCount">0</strong></div>
     </section>
-    <section class="panel">
+    <section class="extra-stats"><div class="stat"><span class="muted small">Domain unik</span><strong id="domainCount">0</strong></div><div class="stat"><span class="muted small">Repository terdaftar</span><strong id="repoCount">0</strong></div><div class="stat"><span class="muted small">Ditambahkan bulan ini</span><strong id="newCount">0</strong></div></section>
+    <nav class="navtabs"><button class="selected" type="button" data-tab="sites">Website</button><button type="button" data-tab="activity">Aktivitas sesi</button><button type="button" data-tab="tools">Impor & cadangan</button></nav>
+    <section id="sitesPanel" class="panel">
       <div class="toolbar">
         <div><h2 style="margin-bottom:4px">Website terdaftar</h2><div id="listStatus" class="muted small">Memuat data…</div></div>
         <button id="addButton" type="button">＋ Tambah website</button>
       </div>
       <div class="toolbar"><input id="searchInput" type="search" placeholder="Cari nama, domain, atau repository…" aria-label="Cari website"><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="statusFilter" aria-label="Filter status" style="width:auto;min-width:130px"><option value="all">Semua status</option><option value="active">Aktif</option><option value="paused">Nonaktif</option></select><select id="sortOrder" aria-label="Urutkan website" style="width:auto;min-width:150px"><option value="updated">Terbaru diubah</option><option value="name">Nama A–Z</option><option value="created">Terbaru dibuat</option></select><button id="exportButton" class="secondary" type="button">Ekspor JSON</button><button id="refreshButton" class="secondary" type="button">Muat ulang</button></div></div>
-      <div id="dashboardMessage" aria-live="polite"></div>
+      <div class="bulkbar"><label style="margin:0;display:flex;gap:8px;align-items:center"><input id="selectAll" type="checkbox" style="width:auto"> Pilih semua</label><span id="selectedCount" class="muted small">0 dipilih</span><button id="bulkActivate" class="secondary" type="button" disabled>Aktifkan</button><button id="bulkPause" class="secondary" type="button" disabled>Nonaktifkan</button><button id="bulkDelete" class="danger" type="button" disabled>Hapus pilihan</button></div><div id="dashboardMessage" aria-live="polite"></div>
       <div class="table-wrap">
-        <table><thead><tr><th>Website</th><th>Repository</th><th>Status</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
+        <table><thead><tr><th></th><th>Website</th><th>Repository / kategori</th><th>Status</th><th>Terakhir diubah</th><th>Aksi</th></tr></thead><tbody id="websiteRows"></tbody></table>
       </div>
       <div id="emptyState" class="empty hidden">Belum ada website terdaftar.<br><span class="small">Gunakan tombol “Tambah website” untuk memulai.</span></div>
     </section>
+    </section>
+    <section id="activityPanel" class="panel hidden"><h2>Aktivitas sesi ini</h2><p class="muted small">Riwayat sementara sejak dashboard dibuka; bukan audit permanen.</p><div id="activityList" class="empty">Belum ada aktivitas.</div></section>
+    <section id="toolsPanel" class="panel hidden"><h2>Impor & cadangan</h2><p class="muted small">Ekspor data untuk cadangan atau impor daftar website dari file JSON.</p><button id="toolsExport" class="secondary" type="button">Unduh cadangan JSON</button><label for="importFile">File JSON</label><input id="importFile" type="file" accept=".json,application/json"><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button id="importMerge" type="button" disabled>Gabungkan data</button><button id="importReplace" class="danger" type="button" disabled>Ganti seluruh data</button></div><div id="importMessage" aria-live="polite"></div></section>
     <div class="foot">Semua operasi data dilakukan melalui Development Worker · API target dikunci</div>
   </main>
 </div>
@@ -108,7 +118,7 @@ const REQUEST_TIMEOUT=20000;
 let adminToken='';
 let websites=[];
 let dataExists=false;
-let busy=false;
+let busy=false,selectedIds=new Set(),importCandidate=null,activityLog=[];
 
 const $=id=>document.getElementById(id);
 function showMessage(target,message,type='error'){const el=$(target);el.className=type;el.textContent=message}
@@ -152,6 +162,9 @@ function renderWebsites(){
  const rows=websites.filter(site=>(statusFilter==='all'||site.status===statusFilter)&&[site.name,site.url,site.owner,site.repo,site.notes].join(' ').toLowerCase().includes(q));
  rows.sort((a,b)=>sortOrder==='name'?(a.name||'').localeCompare(b.name||'','id'):sortOrder==='created'?Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0):Date.parse(b.updatedAt||0)-Date.parse(a.updatedAt||0));
  $('totalCount').textContent=websites.length;
+ $('domainCount').textContent=new Set(websites.map(x=>{try{return new URL(x.url).hostname.toLowerCase()}catch{return null}}).filter(Boolean)).size;
+ $('repoCount').textContent=new Set(websites.map(x=>(x.owner||'').toLowerCase()+'/'+(x.repo||'').toLowerCase()).filter(x=>x!=='/')).size;
+ const now=new Date();$('newCount').textContent=websites.filter(x=>{const d=new Date(x.createdAt||0);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()}).length;
  $('activeCount').textContent=websites.filter(x=>x.status!=='paused').length;
  $('pausedCount').textContent=websites.filter(x=>x.status==='paused').length;
  $('websiteRows').replaceChildren();
@@ -159,10 +172,11 @@ function renderWebsites(){
  if(!rows.length)return;
  for(const site of rows){
   const tr=document.createElement('tr');
+  const pick=document.createElement('td'),check=document.createElement('input');check.type='checkbox';check.style.width='auto';check.checked=selectedIds.has(site.id);check.addEventListener('change',()=>{check.checked?selectedIds.add(site.id):selectedIds.delete(site.id);updateBulk()});pick.append(check);tr.append(pick);
   const website=document.createElement('td');const name=document.createElement('div');name.className='site-name';name.textContent=site.name||'(Tanpa nama)';
   const url=document.createElement(validUrl(site.url)?'a':'span');url.className='site-url';url.textContent=site.url||'URL belum tersedia';if(validUrl(site.url)){url.href=site.url;url.target='_blank';url.rel='noopener noreferrer'}
   website.append(name,url);
-  const repo=document.createElement('td');repo.textContent=(site.owner||'')+'/'+(site.repo||'');
+  const repo=document.createElement('td');repo.textContent=(site.owner||'')+'/'+(site.repo||'');if(site.category){const cat=document.createElement('div');cat.className='small muted';cat.textContent=site.category;repo.append(cat)}if(Array.isArray(site.tags)){for(const value of site.tags.slice(0,4)){const tag=document.createElement('span');tag.className='tag';tag.textContent=value;repo.append(tag)}}
   const status=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+(site.status==='paused'?'paused':'active');pill.textContent=site.status==='paused'?'Nonaktif':'Aktif';status.append(pill);
   const updated=document.createElement('td');updated.textContent=site.updatedAt?new Date(site.updatedAt).toLocaleDateString('id-ID'):'—';
   const actions=document.createElement('td');actions.className='actions';
@@ -187,7 +201,7 @@ async function persistWebsites(next){
    if(typeof sha!=='string'||!/^[a-f0-9]{40}$/i.test(sha))throw new Error('Worker tidak mengembalikan SHA valid. Data tidak diubah.');
    await request('/api/v1/admin/write/update',{method:'PUT',body:{path:DATA_PATH,sha,content:next}});
   }
-  websites=next;renderWebsites();$('listStatus').textContent='Tersimpan ke GitHub · '+new Date().toLocaleTimeString('id-ID');
+  websites=next;renderWebsites();$('listStatus').textContent='Tersimpan ke GitHub · '+new Date().toLocaleTimeString('id-ID');logActivity('Simpan perubahan',next.length+' website dalam daftar');
   showMessage('dashboardMessage','Perubahan berhasil disimpan.','success');
  }finally{busy=false;$('saveButton').disabled=false;$('addButton').disabled=false;$('refreshButton').disabled=false}
 }
@@ -216,7 +230,19 @@ $('logoutButton').addEventListener('click',()=>logout(true));
 function logout(show=true){adminToken='';websites=[];dataExists=false;$('dashboardView').classList.add('hidden');$('loginView').classList.remove('hidden');$('password').value='';if(show)showMessage('loginMessage','Anda telah keluar dari dashboard.','success')}
 $('addButton').addEventListener('click',()=>openEditor());
 $('refreshButton').addEventListener('click',loadWebsites);
-$('searchInput').addEventListener('input',renderWebsites);$('statusFilter').addEventListener('change',renderWebsites);$('sortOrder').addEventListener('change',renderWebsites);
+$('searchInput').addEventListener('input',renderWebsites);
+function logActivity(title,detail){activityLog.unshift({title,detail,time:new Date().toLocaleString('id-ID')});activityLog=activityLog.slice(0,30);const box=$('activityList');box.replaceChildren();for(const a of activityLog){const row=document.createElement('div');row.style.cssText='padding:12px;border-bottom:1px solid #eee;text-align:left';const t=document.createElement('strong');t.textContent=a.title;const d=document.createElement('div');d.className='muted small';d.textContent=a.detail+' · '+a.time;row.append(t,d);box.append(row)}}
+function updateBulk(){const n=selectedIds.size;$('selectedCount').textContent=n+' dipilih';['bulkActivate','bulkPause','bulkDelete'].forEach(id=>$(id).disabled=!n);$('selectAll').checked=websites.length>0&&n===websites.length}
+$('selectAll').addEventListener('change',()=>{selectedIds=$('selectAll').checked?new Set(websites.map(x=>x.id)):new Set();renderWebsites();updateBulk()});
+async function bulkStatus(status){const ids=new Set(selectedIds);if(!ids.size)return;try{await persistWebsites(websites.map(x=>ids.has(x.id)?{...x,status,updatedAt:new Date().toISOString()}:x));logActivity('Ubah status massal',ids.size+' website');selectedIds.clear();renderWebsites();updateBulk()}catch(e){showMessage('dashboardMessage',e.message)}}
+$('bulkActivate').addEventListener('click',()=>bulkStatus('active'));$('bulkPause').addEventListener('click',()=>bulkStatus('paused'));
+$('bulkDelete').addEventListener('click',async()=>{const ids=new Set(selectedIds);if(!ids.size||!confirm('Hapus '+ids.size+' website terpilih?'))return;try{await persistWebsites(websites.filter(x=>!ids.has(x.id)));selectedIds.clear();renderWebsites();updateBulk();logActivity('Hapus massal',ids.size+' website')}catch(e){showMessage('dashboardMessage',e.message)}});
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('selected',x===b));['sites','activity','tools'].forEach(x=>$(x+'Panel').classList.toggle('hidden',b.dataset.tab!==x))}));
+function exportData(){const blob=new Blob([JSON.stringify(websites,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dekeku-websites-backup.json';a.click();URL.revokeObjectURL(url);logActivity('Ekspor cadangan',websites.length+' website')}
+$('toolsExport').addEventListener('click',exportData);$('exportButton').addEventListener('click',exportData);
+$('importFile').addEventListener('change',async e=>{importCandidate=null;$('importMerge').disabled=$('importReplace').disabled=true;const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.length>500)throw Error('Format harus array JSON, maksimal 500 entri');const ids=new Set();for(const x of data){if(!x||typeof x.id!=='string'||typeof x.name!=='string'||!validUrl(x.url)||typeof x.owner!=='string'||typeof x.repo!=='string'||ids.has(x.id))throw Error('Terdapat data website tidak valid atau ID duplikat');ids.add(x.id)}importCandidate=data;$('importMerge').disabled=$('importReplace').disabled=false;showMessage('importMessage',data.length+' website siap diimpor.','success')}catch(err){showMessage('importMessage','Impor gagal: '+err.message)}});
+async function applyImport(replace){if(!importCandidate)return;let next;if(replace){if(!confirm('Ganti seluruh daftar website?'))return;next=importCandidate}else{const map=new Map(websites.map(x=>[x.id,x]));importCandidate.forEach(x=>map.set(x.id,{...map.get(x.id),...x}));next=[...map.values()]}try{await persistWebsites(next);logActivity('Impor data',next.length+' website');showMessage('importMessage','Data berhasil diimpor.','success');importCandidate=null;$('importFile').value='';$('importMerge').disabled=$('importReplace').disabled=true}catch(err){showMessage('importMessage',err.message)}}
+$('importMerge').addEventListener('click',()=>applyImport(false));$('importReplace').addEventListener('click',()=>applyImport(true));$('statusFilter').addEventListener('change',renderWebsites);$('sortOrder').addEventListener('change',renderWebsites);
 $('exportButton').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(websites,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='dekeku-websites-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);});
 $('closeEditor').addEventListener('click',closeEditor);$('cancelEditor').addEventListener('click',closeEditor);
 $('editor').addEventListener('click',event=>{if(event.target===$('editor'))closeEditor()});
@@ -229,7 +255,7 @@ $('websiteForm').addEventListener('submit',async event=>{
  const normalizedHost=new URL(url).hostname.toLowerCase().replace(/^www\./,'');
  const duplicate=websites.find(x=>x.id!==id&&(new URL(x.url).hostname.toLowerCase().replace(/^www\./,'')===normalizedHost||(x.owner||'').toLowerCase()===owner.toLowerCase()&&(x.repo||'').toLowerCase()===repo.toLowerCase()));
  if(duplicate){showMessage('editorMessage','Domain atau repository sudah terdaftar pada website: '+(duplicate.name||duplicate.id));return}
- const record={id,name,url,owner,repo,status:$('siteStatus').value,notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const record={...(previous||{}),id,name,url,owner,repo,status:$('siteStatus').value,category:previous?.category||'',tags:previous?.tags||[],notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const next=previous?websites.map(x=>x.id===id?record:x):[record,...websites];
  try{await persistWebsites(next);closeEditor()}catch(error){showMessage('editorMessage',error.message)}
 });
