@@ -172,7 +172,6 @@ async function persistWebsites(next){
  if(busy)throw new Error('Operasi lain sedang berjalan.');
  busy=true;$('saveButton').disabled=true;$('addButton').disabled=true;$('refreshButton').disabled=true;
  try{
-  const payload=JSON.stringify(next,null,2);
   if(!dataExists){
    await request('/api/v1/admin/write/create',{method:'POST',body:{path:DATA_PATH,content:next}});
    dataExists=true;
