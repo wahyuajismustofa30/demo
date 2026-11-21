@@ -127,6 +127,7 @@ function parseWebsiteList(payload){
  if(Array.isArray(payload))return payload;
  if(payload&&Array.isArray(payload.websites))return payload.websites;
  if(payload&&Array.isArray(payload.data))return payload.data;
+ if(payload&&Array.isArray(payload.content))return payload.content;
  if(payload&&typeof payload.content==='string'){try{const parsed=JSON.parse(payload.content);if(Array.isArray(parsed))return parsed}catch{}}
  throw new Error('Format public/data/websites.json tidak valid. Data harus berupa JSON array.');
 }
