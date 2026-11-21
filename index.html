@@ -246,7 +246,7 @@ async function writeData(){
  if(busy)return;
  const method=document.getElementById('writeMethod').value,path=document.getElementById('writePath').value.trim(),button=document.getElementById('writeButton');
  if(!jwtToken){uiLog('WRITE-AUTH','Write Engine',method,'/api/v1/admin/write','FAIL','Admin belum login');return}
- if(!/^public\\/data\\/[a-zA-Z0-9._/-]+\\.json$/.test(path)||path.includes('..')||path.includes('//')){uiLog('WRITE-PATH','Write Engine',method,'/api/v1/admin/write','FAIL','Path harus berupa file JSON di public/data/ tanpa traversal');return}
+ if(!path.startsWith('public/data/')||!path.endsWith('.json')||path.includes('..')||path.includes('//')){uiLog('WRITE-PATH','Write Engine',method,'/api/v1/admin/write','FAIL','Path harus berupa file JSON di public/data/ tanpa traversal');return}
  const endpoint=method==='POST'?'/api/v1/admin/write/create':method==='PUT'?'/api/v1/admin/write/update':'/api/v1/admin/write/delete';
  const body={path};
  if(method!=='DELETE'){
