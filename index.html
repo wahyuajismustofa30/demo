@@ -158,7 +158,7 @@ function renderWebsites(){
  for(const site of rows){
   const tr=document.createElement('tr');
   const website=document.createElement('td');const name=document.createElement('div');name.className='site-name';name.textContent=site.name||'(Tanpa nama)';
-  const url=document.createElement('a');url.className='site-url';url.href=site.url;url.target='_blank';url.rel='noopener noreferrer';url.textContent=site.url;
+  const url=document.createElement(validUrl(site.url)?'a':'span');url.className='site-url';url.textContent=site.url||'URL belum tersedia';if(validUrl(site.url)){url.href=site.url;url.target='_blank';url.rel='noopener noreferrer'}
   website.append(name,url);
   const repo=document.createElement('td');repo.textContent=(site.owner||'')+'/'+(site.repo||'');
   const status=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+(site.status==='paused'?'paused':'active');pill.textContent=site.status==='paused'?'Nonaktif':'Aktif';status.append(pill);
