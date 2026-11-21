@@ -84,7 +84,6 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
       </div>
       <div id="emptyState" class="empty hidden">Belum ada website terdaftar.<br><span class="small">Gunakan tombol “Tambah website” untuk memulai.</span></div>
     </section>
-    </section>
     <section id="activityPanel" class="panel hidden"><h2>Aktivitas sesi ini</h2><p class="muted small">Riwayat sementara sejak dashboard dibuka; bukan audit permanen.</p><div id="activityList" class="empty">Belum ada aktivitas.</div></section>
     <section id="toolsPanel" class="panel hidden"><h2>Impor & cadangan</h2><p class="muted small">Ekspor data untuk cadangan atau impor daftar website dari file JSON.</p><button id="toolsExport" class="secondary" type="button">Unduh cadangan JSON</button><label for="importFile">File JSON</label><input id="importFile" type="file" accept=".json,application/json"><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button id="importMerge" type="button" disabled>Gabungkan data</button><button id="importReplace" class="danger" type="button" disabled>Ganti seluruh data</button></div><div id="importMessage" aria-live="polite"></div></section>
     <div class="foot">Semua operasi data dilakukan melalui Development Worker · API target dikunci</div>
@@ -101,7 +100,14 @@ h1{font-size:1.35rem;margin:0}h2{font-size:1.05rem;margin:0 0 14px}.sub{font-siz
         <div class="full"><label for="siteUrl">URL website *</label><input id="siteUrl" type="url" maxlength="300" required placeholder="https://contoh.com"></div>
         <div><label for="repoOwner">GitHub username *</label><input id="repoOwner" maxlength="100" required placeholder="username"></div>
         <div><label for="repoName">Repository *</label><input id="repoName" maxlength="100" required placeholder="repository"></div>
-        <div class="full"><label for="siteStatus">Status</label><select id="siteStatus"><option value="active">Aktif</option><option value="paused">Nonaktif</option></select></div>
+        <div><label for="siteStatus">Status</label><select id="siteStatus"><option value="active">Aktif</option><option value="paused">Nonaktif</option></select></div>
+        <div><label for="sitePriority">Prioritas</label><select id="sitePriority"><option value="normal">Normal</option><option value="high">Tinggi</option><option value="critical">Kritis</option><option value="low">Rendah</option></select></div>
+        <div><label for="siteCategory">Kategori</label><input id="siteCategory" maxlength="60" placeholder="Bisnis, portofolio, toko…"></div>
+        <div><label for="siteEnvironment">Lingkungan</label><select id="siteEnvironment"><option value="production">Production</option><option value="staging">Staging</option><option value="development">Development</option></select></div>
+        <div><label for="siteFramework">Teknologi / framework</label><input id="siteFramework" maxlength="80" placeholder="WordPress, Astro, React…"></div>
+        <div><label for="siteHosting">Hosting / platform</label><input id="siteHosting" maxlength="80" placeholder="Cloudflare Pages, VPS…"></div>
+        <div><label for="siteContact">Email kontak</label><input id="siteContact" type="email" maxlength="150" placeholder="admin@contoh.com"></div>
+        <div class="full"><label for="siteTags">Tag (pisahkan dengan koma)</label><input id="siteTags" maxlength="250" placeholder="customer, landing-page, prioritas"></div>
         <div class="full"><label for="siteNotes">Catatan (opsional)</label><textarea id="siteNotes" rows="3" maxlength="500" placeholder="Keterangan singkat website"></textarea></div>
       </div>
       <div id="editorMessage" aria-live="polite"></div>
@@ -187,6 +193,7 @@ function renderWebsites(){
   const remove=document.createElement('button');remove.type='button';remove.className='danger';remove.textContent='Hapus';remove.addEventListener('click',()=>removeWebsite(site.id));
   actions.append(open,copy,toggle,edit,remove);tr.append(website,repo,status,updated,actions);$('websiteRows').append(tr);
  }
+ updateBulk();
 }
 async function persistWebsites(next){
  if(busy)throw new Error('Operasi lain sedang berjalan.');
@@ -210,8 +217,8 @@ function openEditor(id=null){
  if(id){
   const site=websites.find(x=>x.id===id);if(!site)return;
   $('editorTitle').textContent='Edit website';$('recordId').value=site.id;$('siteName').value=site.name||'';$('siteUrl').value=site.url||'';
-  $('repoOwner').value=site.owner||'';$('repoName').value=site.repo||'';$('siteStatus').value=site.status||'active';$('siteNotes').value=site.notes||'';
- }else{$('editorTitle').textContent='Tambah website';$('siteStatus').value='active'}
+  $('repoOwner').value=site.owner||'';$('repoName').value=site.repo||'';$('siteStatus').value=site.status||'active';$('sitePriority').value=site.priority||'normal';$('siteCategory').value=site.category||'';$('siteEnvironment').value=site.environment||'production';$('siteFramework').value=site.framework||'';$('siteHosting').value=site.hosting||'';$('siteContact').value=site.contactEmail||'';$('siteTags').value=Array.isArray(site.tags)?site.tags.join(', '):'';$('siteNotes').value=site.notes||'';
+ }else{$('editorTitle').textContent='Tambah website';$('siteStatus').value='active';$('sitePriority').value='normal';$('siteEnvironment').value='production'}
  $('editor').classList.remove('hidden');$('siteName').focus();
 }
 function closeEditor(){$('editor').classList.add('hidden')}
@@ -255,7 +262,8 @@ $('websiteForm').addEventListener('submit',async event=>{
  const normalizedHost=new URL(url).hostname.toLowerCase().replace(/^www\./,'');
  const duplicate=websites.find(x=>x.id!==id&&(new URL(x.url).hostname.toLowerCase().replace(/^www\./,'')===normalizedHost||(x.owner||'').toLowerCase()===owner.toLowerCase()&&(x.repo||'').toLowerCase()===repo.toLowerCase()));
  if(duplicate){showMessage('editorMessage','Domain atau repository sudah terdaftar pada website: '+(duplicate.name||duplicate.id));return}
- const record={...(previous||{}),id,name,url,owner,repo,status:$('siteStatus').value,category:previous?.category||'',tags:previous?.tags||[],notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const contactEmail=$('siteContact').value.trim();if(contactEmail&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)){showMessage('editorMessage','Format email kontak tidak valid.');return}
+ const record={...(previous||{}),id,name,url,owner,repo,status:$('siteStatus').value,priority:$('sitePriority').value,category:$('siteCategory').value.trim(),environment:$('siteEnvironment').value,framework:$('siteFramework').value.trim(),hosting:$('siteHosting').value.trim(),contactEmail,tags:$('siteTags').value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,20),notes:$('siteNotes').value.trim(),createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const next=previous?websites.map(x=>x.id===id?record:x):[record,...websites];
  try{await persistWebsites(next);closeEditor()}catch(error){showMessage('editorMessage',error.message)}
 });
