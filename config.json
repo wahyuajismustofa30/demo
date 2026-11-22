@@ -1,10 +1,10 @@
 {
-    "repository": {
-        "username": "wahyuajismustofa30",
-        "repo": "demo",
-        "url":"https://demo.dekeku.my.id",
-        "mainUrl":"https://www.dekeku.my.id",
-		"googleAnalitik":"G-1M54ZWZRVT",
-        "waAdmin":"6285161517176"
-    }
+  "schema_version": 1,
+  "project": {
+    "id": "demo"
+  },
+  "repository": {
+    "username": "wahyuajismustofa30",
+    "repo": "demo"
+  }
 }
